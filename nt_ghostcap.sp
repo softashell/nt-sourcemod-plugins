@@ -7,6 +7,7 @@
 #define PLUGIN_VERSION	"1.0.1"
 
 #define MAXCAPZONES 4
+
 new ghost, totalcapzones = 0, capzones[MAXCAPZONES], capteam[MAXCAPZONES], capradius[MAXCAPZONES], bool:round_reset = true;
 
 public Plugin:myinfo =
@@ -73,7 +74,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
         if(capzones[capzone] == 0) // Worldspawn
             return;
 
-        PrintToChatAll("Capzone: %d", capzones[capzone]);
+        //PrintToChatAll("Capzone: %d", capzones[capzone]);
         capteam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
     }
 }
