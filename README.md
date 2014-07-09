@@ -12,3 +12,8 @@ nt_radio
 ====================
 
 Adds !radio command so players can listen to included soundtrack
+
+nt_noobname
+====================
+
+Changes the name of any NeotokyoNoob connecting to random podbot name
