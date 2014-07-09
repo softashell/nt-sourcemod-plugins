@@ -1,10 +1,8 @@
 #pragma semicolon 1
 
 #include <sourcemod>
-#include <sdktools>
-#include <sdkhooks>
 
-#define PLUGIN_VERSION	"0.2"
+#define PLUGIN_VERSION	"0.3"
 
 public Plugin:myinfo =
 {
