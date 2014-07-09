@@ -79,14 +79,12 @@ public OnClientConnected(client)
 			count++;
 			namenum = GetRandomInt(0, sizeof(PlayerNames)-1);
 
-			PrintToServer("Finding name. try #%i", count);
-
-			strcopy(newname, sizeof(newname), PlayerNames[namenum][0]);
+			PrintToServer("Finding new name! Try #%i", count);
 
 			if(count >= sizeof(PlayerNames))
-				break;
+				break; // Somehow we managed to use all names already just give up
 		} 
-		while(IsNameTaken(newname));
+		while(IsNameTaken(PlayerNames[namenum][0]));
 
 		Format(newname, sizeof(newname), "%s%s", Prefixes[prefnum], PlayerNames[namenum]);
 		
