@@ -332,6 +332,7 @@ SendChatToAll(client, const String:message[])
 		}
 		FormatActivitySource(client, i, nameBuf, sizeof(nameBuf));
 		
+		PrintToConsole(i, "\x04(ALL) %s: \x01%s", nameBuf, message);
 		PrintToChat(i, "\x04(ALL) %s: \x01%s", nameBuf, message);
 	}
 }
@@ -358,6 +359,7 @@ SendChatToAdmins(from, const String:message[])
 	{
 		if (IsClientInGame(i) && (from == i || CheckCommandAccess(i, "sm_chat", ADMFLAG_CHAT)))
 		{
+			PrintToConsole(i, "\x04(%sADMINS) %N: \x01%s", fromAdmin ? "" : "TO ", from, message);
 			PrintToChat(i, "\x04(%sADMINS) %N: \x01%s", fromAdmin ? "" : "TO ", from, message);
 		}	
 	}
