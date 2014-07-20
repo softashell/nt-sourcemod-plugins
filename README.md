@@ -1,7 +1,17 @@
+nt_damage
+====================
+
+Shows detailed damage dealt/received in console on death/round end
+
 nt_ghostcap
 ====================
 
 Logs ghost capture event so you can award players in HLSTATSX:CE
+
+nt_noobname
+====================
+
+Changes the name of any NeotokyoNoob connecting to random podbot name
 
 nt_mirrordamage
 ====================
@@ -13,7 +23,7 @@ nt_radio
 
 Adds !radio command so players can listen to included soundtrack
 
-nt_noobname
+nt_unlimitedsquads
 ====================
 
-Changes the name of any NeotokyoNoob connecting to random podbot name
+Automatically assigns players to ALPHA and allows unlimited squad size
