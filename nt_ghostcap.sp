@@ -112,8 +112,6 @@ public Action:CheckGhostPosition(Handle:timer) {
             if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
                 continue;
 
-            //GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector); // Yeah, I know it's retarded getting it every time, but I just couldn't find a nice way to cache it
-
             distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
             if(distance <= capRadius[capzone]) {
