@@ -99,9 +99,6 @@ public Action:CheckGhostPosition(Handle:timer) {
 
         GetClientAbsOrigin(carrier, ghostVector);
 
-        if(!totalCapzones) // No cap zones
-            return;
-
         for (capzone=0; capzone <= totalCapzones; capzone++) {
 
             entity = capzones[capzone];
