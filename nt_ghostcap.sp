@@ -4,11 +4,13 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION	"1.0.1"
+#define PLUGIN_VERSION	"1.1"
 
 #define MAXCAPZONES 4
 
-new ghost, totalcapzones = 0, capzones[MAXCAPZONES], capteam[MAXCAPZONES], capradius[MAXCAPZONES], bool:round_reset = true;
+new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
+
+new ghost, totalCapzones = 0, bool:roundReset = true;
 
 public Plugin:myinfo =
 {
@@ -28,66 +30,68 @@ public OnPluginStart()
     CreateTimer(0.5, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
-public OnMapStart()
-{
-    new maxentities = GetMaxEntities(); // the highest number of entities on the map.
+public OnMapEnd() {
+    totalCapzones = 0;
+    roundReset = true;
 
-    decl String:classname[32];
-    new capzone = 0, entity;
-
-    for (entity = MAXPLAYERS + 1; entity <= maxentities; entity++) {
-
-            if (!IsValidEdict(entity)) // if the int isn't a valid entity index, then stop
-                continue;
-
-            GetEdictClassname(entity, classname, sizeof(classname));
-
-            if(StrEqual(classname, "neo_ghost_retrieval_point")) {
-                capzones[capzone]   = entity;
-                capradius[capzone]  = GetEntProp(entity, Prop_Send, "m_Radius");
-
-                if(capzone < 4)
-                    capzone++;
-            }
-
+    for(new i; i <= MAXCAPZONES; i++)
+    {
+        capzones[i] = 0;
+        capzoneDataUpdated[i] = false;
     }
-
-    totalcapzones = capzone;
 }
 
 public OnEntityCreated(entity, const String:classname[])
 {
     if (StrEqual(classname, "weapon_ghost"))
+    {
         ghost = entity;
-    
+    }
+    else if(StrEqual(classname, "neo_ghost_retrieval_point"))
+    {
+        totalCapzones++;
+
+        if(totalCapzones > MAXCAPZONES)
+        {
+            PrintToServer("Too many capzones in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
+            return;
+        }
+
+        capzones[totalCapzones]   = entity;
+    }
 }
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
-
-    round_reset = true; // Allow logging of capture again
-
-    if(!totalcapzones) // No cap zones
+    if(!totalCapzones) // No cap zones
         return;
 
-    // Update capzone team every round
-    for (new capzone = 0; capzone < totalcapzones; capzone++) {
-        if(capzones[capzone] == 0) // Worldspawn
-            return;
+    roundReset = true; // Allow logging of capture again
 
-        //PrintToChatAll("Capzone: %d", capzones[capzone]);
-        capteam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
+    // Update capzone team every round
+    for (new capzone = 0; capzone <= totalCapzones; capzone++) {
+        if(capzones[capzone] == 0) // Worldspawn
+            continue;
+
+        if(!capzoneDataUpdated[capzone])
+            capzoneDataUpdated[capzone] = UpdateCapzoneData(capzone);
+
+        //PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+        capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
     }
 }
 
 public Action:CheckGhostPosition(Handle:timer) {
-    decl Float:ghostVector[3], Float:capzoneVector[3], Float:distance;
+    if (!totalCapzones || !IsValidEdict(ghost))
+        return; // No capzones or no ghost
+
+    decl Float:ghostVector[3], Float:distance;
     decl String:carrierSteamID[64], String:carrierTeam[18];
 
     new capzone, entity, carrier, carrierTeamID;
 
     carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
-    if(!round_reset || carrier == -1)
+    if(!roundReset || carrier < 1 || carrier > MaxClients)
         return;
 
     if (IsClientInGame(carrier) && IsPlayerAlive(carrier)) {
@@ -95,30 +99,30 @@ public Action:CheckGhostPosition(Handle:timer) {
 
         GetClientAbsOrigin(carrier, ghostVector);
 
-        if(!totalcapzones) // No cap zones
+        if(!totalCapzones) // No cap zones
             return;
 
-        for (capzone=0; capzone < totalcapzones; capzone++) {
+        for (capzone=0; capzone <= totalCapzones; capzone++) {
 
             entity = capzones[capzone];
 
             if(entity == 0) // Worldspawn
                 continue;
 
-            if(carrierTeamID != capteam[capzone]) // Wrong capture zone
+            if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
                 continue;
 
-            GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector); // Yeah, I know it's retarded getting it every time, but I just couldn't find a nice way to cache it
+            //GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector); // Yeah, I know it's retarded getting it every time, but I just couldn't find a nice way to cache it
 
-            distance = GetVectorDistance(ghostVector, capzoneVector);
+            distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
-            if(distance <= capradius[capzone]) {
+            if(distance <= capRadius[capzone]) {
                 if (!IsAnyEnemyStillAlive(carrierTeamID))
                     return; // Don't get anything if enemy team is dead already
 
-                round_reset = false; // Won't spam any more events unless value is set to true
+                roundReset = false; // Won't spam any more events unless value is set to true
                 
-                //PrintToChatAll("Captured the ghost!");
+                //PrintToChatAll("Captured the ghost! Capzone: %i", capzone);
                 
                 new carrierUserID = GetClientUserId(carrier);
 
@@ -147,4 +151,19 @@ public bool:IsAnyEnemyStillAlive(team){
     }
 
     return false;
+}
+
+bool:UpdateCapzoneData(capzone) {
+    new entity = capzones[capzone];
+
+    if(!IsValidEdict(entity))
+        return false;
+
+    capRadius[capzone]  = GetEntProp(entity, Prop_Send, "m_Radius");
+
+    GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector[capzone]);
+
+    //PrintToServer("Updating data! Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+
+    return true;
 }
