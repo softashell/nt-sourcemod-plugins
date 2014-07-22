@@ -137,7 +137,10 @@ public Action:CheckGhostPosition(Handle:timer) {
 public bool:IsAnyEnemyStillAlive(team){
     new enemyTeam;
     for(new i = 1; i <= MaxClients; i++) {
-        if(IsClientConnected(i) && IsPlayerAlive(i)) {
+        if(!IsClientInGame(i))
+            continue;
+
+        if(IsPlayerAlive(i)) {
             enemyTeam = GetClientTeam(i);
 
             if((team == 2 && enemyTeam == 3) || (team == 3 && enemyTeam == 2))
