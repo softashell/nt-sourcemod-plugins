@@ -68,10 +68,6 @@ public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (!IsValidClient(client))
 		return;
 
-	// Don't set star for spectators.
-	if (GetClientTeam(client) == 0)
-		return;
-
 	// Don't assign a star if already in one.
 	if ( GetPlayerStar(client) != 0)
 		return;
