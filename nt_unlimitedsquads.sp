@@ -2,9 +2,9 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"1.1"
+#define PLUGIN_VERSION	"1.2"
 
-new Handle:g_hSquadLock;
+new Handle:g_hSquadLock, Handle:g_hDefaultSquad;
 
 public Plugin:myinfo =
 {
@@ -20,9 +20,11 @@ public OnPluginStart()
 	CreateConVar("sm_nt_unlimitesquad_version", PLUGIN_VERSION, "NEOTOKYO° Unlimited squad size version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
 	g_hSquadLock = CreateConVar("sm_nt_squadlock", "0", "Prevents players from changing their assigned squad");
+	g_hDefaultSquad = CreateConVar("sm_nt_squadautojoin", "1", "Assigns squad which players will autojoin on first spawn", _, true, 1.0, true, 5.0);
 
 	RegConsoleCmd("joinstar", cmd_JoinStar);
 
+	HookEvent("game_round_start", Event_RoundStart);
 	HookEvent("player_spawn", event_PlayerSpawn);
 }
 
@@ -34,7 +36,7 @@ public Action:cmd_JoinStar(client, args)
 
 	star = StringToInt(arg);
 
-	if((GetConVarInt(g_hSquadLock) > 0) && (GetPlayerStar(client) != 0))
+	if(GetConVarInt(g_hSquadLock) > 0 && (GetPlayerStar(client) != 0))
 	{
 		PrintToConsole(client, "Squad change blocked");
 		return Plugin_Handled;
@@ -43,6 +45,20 @@ public Action:cmd_JoinStar(client, args)
 	SetPlayerStar(client, star);
 
 	return Plugin_Handled;
+}
+
+public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if(GetConVarInt(g_hSquadLock) == 0)
+		return;
+
+	for(new client = 1; client <= MaxClients; client++)
+	{
+		if (!IsValidClient(client))
+			continue;
+
+		SetPlayerStar(client, GetConVarInt(g_hDefaultSquad));
+	}
 }
 
 public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
@@ -60,23 +76,20 @@ public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if ( GetPlayerStar(client) != 0)
 		return;
 
-	SetPlayerStar(client, 1);
+	SetPlayerStar(client, GetConVarInt(g_hDefaultSquad));
 }
 
 bool:IsValidClient(client)
 {
-	if (client == 0)
-		return false;
-	
-	if (!IsClientConnected(client))
-		return false;
-	
-	if (IsFakeClient(client))
+	if (client == 0 || client > MaxClients)
 		return false;
 	
 	if (!IsClientInGame(client))
 		return false;
-	
+
+	if (GetClientTeam(client) == 0)
+		return false;
+
 	return true;
 }
 
