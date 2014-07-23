@@ -2,7 +2,9 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"1.0"
+#define PLUGIN_VERSION	"1.1"
+
+new Handle:g_hSquadLock;
 
 public Plugin:myinfo =
 {
@@ -17,6 +19,8 @@ public OnPluginStart()
 {
 	CreateConVar("sm_nt_unlimitesquad_version", PLUGIN_VERSION, "NEOTOKYO° Unlimited squad size version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
+	g_hSquadLock = CreateConVar("sm_nt_squadlock", "0", "Prevents players from changing their assigned squad");
+
 	RegConsoleCmd("joinstar", cmd_JoinStar);
 
 	HookEvent("player_spawn", event_PlayerSpawn);
@@ -30,7 +34,15 @@ public Action:cmd_JoinStar(client, args)
 
 	star = StringToInt(arg);
 
+	if((GetConVarInt(g_hSquadLock) > 0) && (GetPlayerStar(client) != 0))
+	{
+		PrintToConsole(client, "Squad change blocked");
+		return Plugin_Handled;
+	}
+
 	SetPlayerStar(client, star);
+
+	return Plugin_Handled;
 }
 
 public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
