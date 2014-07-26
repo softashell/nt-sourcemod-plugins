@@ -4,7 +4,7 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION	"1.1"
+#define PLUGIN_VERSION	"1.2"
 
 #define MAXCAPZONES 4
 
@@ -61,14 +61,16 @@ public OnEntityCreated(entity, const String:classname[])
     }
 }
 
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
+public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+{
     if(!totalCapzones) // No cap zones
         return;
 
     roundReset = true; // Allow logging of capture again
 
     // Update capzone team every round
-    for (new capzone = 0; capzone <= totalCapzones; capzone++) {
+    for (new capzone = 0; capzone <= totalCapzones; capzone++)
+    {
         if(capzones[capzone] == 0) // Worldspawn
             continue;
 
@@ -77,10 +79,31 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 
         //PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
         capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
+
+        //Set capzone radius to 0 to disable double capping
+        SetEntProp(capzones[capzone], Prop_Send, "m_Radius", 0);
+    }
+
+    //Enable capzones again after 2 seconds from round start
+    CreateTimer(2.0, timer_EnableCapzones);
+}
+
+public Action:timer_EnableCapzones(Handle:timer, any:client)
+{
+    PrintToServer("Enabling capzones");
+
+    for (new capzone = 0; capzone <= totalCapzones; capzone++)
+    {
+        if(capzones[capzone] == 0) // Worldspawn
+            continue;
+
+        // Set radius to default value again
+        SetEntProp(capzones[capzone], Prop_Send, "m_Radius", capRadius[capzone]);
     }
 }
 
-public Action:CheckGhostPosition(Handle:timer) {
+public Action:CheckGhostPosition(Handle:timer)
+{
     if (!totalCapzones || !IsValidEdict(ghost))
         return; // No capzones or no ghost
 
@@ -94,13 +117,14 @@ public Action:CheckGhostPosition(Handle:timer) {
     if(!roundReset || carrier < 1 || carrier > MaxClients)
         return;
 
-    if (IsClientInGame(carrier) && IsPlayerAlive(carrier)) {
+    if (IsClientInGame(carrier) && IsPlayerAlive(carrier))
+    {
         carrierTeamID = GetClientTeam(carrier);
 
         GetClientAbsOrigin(carrier, ghostVector);
 
-        for (capzone=0; capzone <= totalCapzones; capzone++) {
-
+        for (capzone=0; capzone <= totalCapzones; capzone++)
+        {
             entity = capzones[capzone];
 
             if(entity == 0) // Worldspawn
@@ -110,6 +134,10 @@ public Action:CheckGhostPosition(Handle:timer) {
                 continue;
 
             distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
+
+            // If capzone has no radius ingore it
+            if(capRadius[capzone] <= 0)
+                continue;
 
             if(distance <= capRadius[capzone]) {
                 if (!IsAnyEnemyStillAlive(carrierTeamID))
@@ -134,9 +162,11 @@ public Action:CheckGhostPosition(Handle:timer) {
 
 }
 
-public bool:IsAnyEnemyStillAlive(team){
+public bool:IsAnyEnemyStillAlive(team)
+{
     new enemyTeam;
-    for(new i = 1; i <= MaxClients; i++) {
+    for(new i = 1; i <= MaxClients; i++)
+    {
         if(!IsClientInGame(i))
             continue;
 
@@ -151,7 +181,8 @@ public bool:IsAnyEnemyStillAlive(team){
     return false;
 }
 
-bool:UpdateCapzoneData(capzone) {
+bool:UpdateCapzoneData(capzone)
+{
     new entity = capzones[capzone];
 
     if(!IsValidEdict(entity))
