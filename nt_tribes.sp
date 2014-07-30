@@ -73,6 +73,9 @@ public OnAutoConfigsBuffered() {
 
 	lastplayer_jinrai = 0;
 	lastplayer_nsf = 0;
+
+	flLastCheck = GetGameTime();
+	flRoundStartTime = GetGameTime();
 }
 
 public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
