@@ -16,6 +16,15 @@ new Float:flLastCheck, Float:flRoundStartTime;
 
 new lastplayer_jinrai, lastplayer_nsf;
 
+new const String:gPainSounds[][] =
+{
+	"player/pl_fallpain1.wav",
+	"player/pl_fallpain3.wav",
+	"player/pl_pain5.wav",
+	"player/pl_pain6.wav",
+	"player/pl_pain7.wav"
+};
+
 public Plugin:myinfo =
 {
     name = "TRIBESTOKYO°",
@@ -47,6 +56,10 @@ public OnPluginStart()
 	// Get offsets
 	gOffsetMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons");
 	gOffsetAmmo = FindSendPropInfo("CBasePlayer", "m_iAmmo");
+
+	// Precache pain sounds just in case
+	for(new snd = 0; snd < sizeof(gPainSounds); snd++)
+		PrecacheSound(gPainSounds[snd]);
 }
 
 public OnClientPutInServer(client)
@@ -380,14 +393,26 @@ ReduceHealth(client, damage)
 {
  	new health = GetClientHealth(client) - damage;
 
-	if (health < 0)
-		health = 0;
+	if (health <= 0)
+	{
+		ForcePlayerSuicide(client);
+		return;
+	}
 
 	SetEntProp(client, Prop_Send, "m_iHealth", health, 1);
 	SetEntProp(client, Prop_Data, "m_iHealth", health, 1);
 
-	if (health <= 0)
-		ForcePlayerSuicide(client);
+	EmitSoundToClient(client, gPainSounds[GetRandomInt(0, sizeof(gPainSounds)-1)]);
+
+	new Handle:hBf = StartMessageOne("Shake", client);
+	if(hBf!=INVALID_HANDLE)
+	{
+		BfWriteByte(hBf, 0x0000);
+		BfWriteFloat(hBf, 5.0);
+		BfWriteFloat(hBf, 0.5);
+		BfWriteFloat(hBf, 1.0);
+		EndMessage();
+	}
 }
 
 stock SetPlayerClass(client, class)
