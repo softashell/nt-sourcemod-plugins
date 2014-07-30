@@ -139,7 +139,8 @@ public Action:CheckGhostPosition(Handle:timer)
             if(capRadius[capzone] <= 0)
                 continue;
 
-            if(distance <= capRadius[capzone]) {
+            if(distance <= capRadius[capzone])
+            {
                 if (!IsAnyEnemyStillAlive(carrierTeamID))
                     return; // Don't get anything if enemy team is dead already
 

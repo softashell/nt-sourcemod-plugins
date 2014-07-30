@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.1"
+#define PLUGIN_VERSION	"0.2"
 
 public Plugin:myinfo =
 {
@@ -34,9 +34,9 @@ public OnPluginStart()
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client;
-	for(client = 0; client <= MaxClients; client++)
+	for(client = 1; client <= MaxClients; client++)
 	{
-		if(IsValidClient(client))
+		if(IsValidClient(client) && GetClientTeam(client) > 1)
 			DamageReport(client);
 	}
 
@@ -119,24 +119,28 @@ public DamageReport(client)
 			totalHitsTaken	 += g_HitsTaken[client][attacker];
 		}
 	}
+	new Float:damageRatio;
+
+	if (totalDamageTaken > 0)
+		damageRatio = float(totalDamageDealt)/float(totalDamageTaken);
+	else
+		damageRatio = float(totalDamageDealt);
 
 	PrintToConsole(client, "Total damage dealt: %i in %i hits", totalDamageDealt, totalHitsDealt);
 	PrintToConsole(client, "Total damage received: %i in %i hits", totalDamageTaken, totalHitsTaken);
+	PrintToConsole(client, "Damage ratio: %.01f", damageRatio);
 	PrintToConsole(client, "================================================");
 }
 
-bool:IsValidClient(client){
-	
-	if (client == 0)
-		return false;
-	
-	if (!IsClientConnected(client))
-		return false;
-	
-	if (IsFakeClient(client))
+stock bool:IsValidClient(client)
+{
+	if ((client < 1) || (client > MaxClients))
 		return false;
 	
 	if (!IsClientInGame(client))
+		return false;
+	
+	if (IsFakeClient(client))
 		return false;
 	
 	return true;
