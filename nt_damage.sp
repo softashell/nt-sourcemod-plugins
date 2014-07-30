@@ -61,14 +61,15 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
-	if(!IsValidClient(attacker) || (victim == attacker))
-		return;
-
 	new health = GetEventInt(event, "health"); // Only reports new health
+	
 	new damage = g_PlayerHealth[victim] - health;
-
+	
 	// Update current health
 	g_PlayerHealth[victim] = health;
+
+	if(!IsValidClient(attacker) || (victim == attacker))
+		return;
 	
 	g_DamageDealt[attacker][victim] += damage;
 	g_HitsMade[attacker][victim] += 1;
@@ -92,7 +93,7 @@ public DamageReport(client)
 	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken;
 
 	PrintToConsole(client, "================================================");
-	for(new victim = 0; victim <= MaxClients; victim++)
+	for(new victim = 1; victim <= MaxClients; victim++)
 	{
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
