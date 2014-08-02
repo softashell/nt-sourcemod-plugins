@@ -366,7 +366,7 @@ CheckPlayerSpeed(client)
 	{
 		// 15 second freezetime + 2 seconds to give player a chance to move
 		if((GetGameTime() >= flRoundStartTime+17.0)) 
-			ReduceHealth(client, 5);
+			ReduceHealth(client, 5, true);
 	}
 	else if(bDuel) // Only 2 players alive
 	{
@@ -389,7 +389,7 @@ CheckPlayerSpeed(client)
 
 }
 
-ReduceHealth(client, damage)
+ReduceHealth(client, damage, bool:effect=false)
 {
  	new health = GetClientHealth(client) - damage;
 
@@ -402,13 +402,16 @@ ReduceHealth(client, damage)
 	SetEntProp(client, Prop_Send, "m_iHealth", health, 1);
 	SetEntProp(client, Prop_Data, "m_iHealth", health, 1);
 
+	if(!effect)
+		return;
+
 	EmitSoundToClient(client, gPainSounds[GetRandomInt(0, sizeof(gPainSounds)-1)]);
 
 	new Handle:hBf = StartMessageOne("Shake", client);
 	if(hBf!=INVALID_HANDLE)
 	{
 		BfWriteByte(hBf, 0x0000);
-		BfWriteFloat(hBf, 5.0);
+		BfWriteFloat(hBf, 10.0);
 		BfWriteFloat(hBf, 0.5);
 		BfWriteFloat(hBf, 1.0);
 		EndMessage();
