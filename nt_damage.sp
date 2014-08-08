@@ -160,8 +160,8 @@ public AvardAssists(client, killer)
 
 		g_PlayerAssist[attacker] += damage;
 
-		PrintToChat(attacker, "[NT°] You gained %i points for %N kill assist", damage, client);
-		PrintToConsole(attacker, "[NT°] You gained %i points for %N kill assist", damage, client);
+		PrintToChat(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
+		PrintToConsole(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
 
 		CheckAssists(attacker);
 	}
@@ -178,8 +178,8 @@ stock CheckAssists(client)
 
 		g_PlayerAssist[client] -= 100;
 
-		PrintToChat(client, "[NT°] You gained 2 XP for 100 assist points!");
-		PrintToConsole(client, "[NT°] You gained 2 XP for 100 assist points!");
+		PrintToChat(client, "[NT°] You gained 2 XP for assists");
+		PrintToConsole(client, "[NT°] You gained 2 XP for assists");
 
 		// Log kill_assist event
 		new userID, String:steamID[64], String:team[18];
