@@ -14,6 +14,8 @@ public Plugin:myinfo =
     url = ""
 };
 
+new bool:g_SeenReport[MAXPLAYERS+1];
+
 new g_PlayerHealth[MAXPLAYERS+1];
 new g_PlayerAssist[MAXPLAYERS+1];
 
@@ -35,6 +37,7 @@ public OnPluginStart()
 
 public OnClientPutInServer(client)
 {
+	g_SeenReport[client] = false;
 	g_PlayerAssist[client] = 0;
 }
 
@@ -45,12 +48,16 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	for(client = 1; client <= MaxClients; client++)
 	{
 		if(IsValidClient(client) && GetClientTeam(client) > 1)
-			DamageReport(client);
+		{
+			if(!g_SeenReport[client])
+				DamageReport(client);
+		}
 	}
 
 	// Reset everything on new round
 	for(client = 1; client <= MaxClients; client++)
 	{
+		g_SeenReport[client] = false;
 		g_PlayerHealth[client] = 100;
 
 		for(new victim = 1; victim <= MaxClients; victim++)
@@ -96,6 +103,9 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		return;
 
 	DamageReport(victim);
+
+	g_SeenReport[victim] = true;
+
 	AvardAssists(victim, attacker);
 }
 
@@ -194,18 +204,16 @@ stock CheckAssists(client)
 
 stock SetXP(client, xp)
 {
-	new rank;
+	new rank = 0; // Rankless dog
 
-	if(xp <= -1)
-		rank = 0;
-	else if(xp >= 0 && xp <= 3)
-		rank = 1;
+	if(xp >= 0 && xp <= 3)
+		rank = 1; // Private
 	else if(xp >= 4 && xp <= 9)
-		rank = 2;
+		rank = 2; // Corporal
 	else if(xp >= 10 && xp <= 19)
-		rank = 3;
+		rank = 3; // Sergeant
 	else if(xp >= 20)
-		rank = 4;
+		rank = 4; // Lieutenant
 
 	SetEntProp(client, Prop_Data, "m_iFrags", xp);
 	SetEntProp(client, Prop_Send, "m_iRank", rank);
