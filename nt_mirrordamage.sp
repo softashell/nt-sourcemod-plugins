@@ -11,7 +11,7 @@
 #define FF_RESTORE_MIN 100 // Gives player FF_RESTORE_HP if health falls below this value
 #define FF_RESTORE_HP 100 // Sets health to FF_RESTORE_HP if itfalls below FF_RESTORE_MIN from team damage
 
-#define FF_PROTECTION_TIME 15.0
+#define FF_PROTECTION_TIME 7.0
 
 public Plugin:myinfo =
 {
