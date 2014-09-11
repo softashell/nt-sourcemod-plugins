@@ -24,6 +24,7 @@ public Plugin:myinfo =
 
 new Handle:hMirrorDamage;
 new Handle:hMirrorTimer;
+new Handle:hEngageTimer[MAXPLAYERS+1];
 
 new bool:IsAttackingEnemy[MAXPLAYERS+1] = false;
 new bool:MirrorEnabled = false;
@@ -80,7 +81,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	new victim = GetClientOfUserId(victimId);
 	new attacker = GetClientOfUserId(attackerId);
 
-	if(!IsValidClient(attacker) || (victim == attacker))
+	if(!IsValidClient(attacker) || victim == attacker || IsAttackingEnemy[attacker])
 		return;
 
 	new team_victim = GetClientTeam(victim);
@@ -98,13 +99,18 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	else
 	{
 		IsAttackingEnemy[attacker] = true;
-		CreateTimer(3.0, Timer_EnableMirrorAfterEngage(attacker));
+		
+		if (hEngageTimer[attacker] == INVALID_HANDLE)
+			hEngageTimer[attacker] = CreateTimer(3.0, Timer_EnableMirrorAfterEngage, attacker);
 	}
 }
 
 public Action:Timer_EnableMirrorAfterEngage(Handle:timer, any:attacker)
 {
-	IsAttackingEnemy[attacker] = false;
+	if(IsValidClient(attacker))
+		IsAttackingEnemy[attacker] = false;
+		
+	hEngageTimer[attacker] = INVALID_HANDLE;
 }
 
 public Action:DisableMirror(Handle:timer)
