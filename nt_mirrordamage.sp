@@ -25,6 +25,7 @@ public Plugin:myinfo =
 new Handle:hMirrorDamage;
 new Handle:hMirrorTimer;
 
+new bool:IsAttackingEnemy[MAXPLAYERS+1] = false;
 new bool:MirrorEnabled = false;
 
 public OnPluginStart()
@@ -42,6 +43,11 @@ public OnPluginStart()
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	for (new i = 0; i <= MaxClients; i++)
+	{
+		if(IsValidClient(i))
+			IsAttackingEnemy[i] = false;
+	}
 
 	MirrorEnabled = true;
 
@@ -80,14 +86,25 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	new team_victim = GetClientTeam(victim);
 	new team_attacker = GetClientTeam(attacker);
 
-	if(team_attacker != team_victim)
-		return;
+	if(team_attacker == team_victim)
+	{
+		if(health <= FF_RESTORE_MIN)
+		{
+			SetEntProp(victim, Prop_Send, "m_iHealth", FF_RESTORE_HP, 1);
+			SetEntProp(victim, Prop_Data, "m_iHealth", FF_RESTORE_HP, 1);
+		}
+	}
+	
+	else
+	{
+		IsAttackingEnemy[attacker] = true;
+		CreateTimer(3.0, Timer_EnableMirrorAfterEngage(attacker));
+	}
+}
 
- 	if(health <= FF_RESTORE_MIN)
- 	{
- 		SetEntProp(victim, Prop_Send, "m_iHealth", FF_RESTORE_HP, 1);
-		SetEntProp(victim, Prop_Data, "m_iHealth", FF_RESTORE_HP, 1);
- 	}
+public Action:Timer_EnableMirrorAfterEngage(Handle:timer, any:attacker)
+{
+	IsAttackingEnemy[attacker] = false;
 }
 
 public Action:DisableMirror(Handle:timer)
