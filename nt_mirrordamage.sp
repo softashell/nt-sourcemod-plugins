@@ -24,7 +24,6 @@ public Plugin:myinfo =
 
 new Handle:hMirrorDamage;
 new Handle:hMirrorTimer;
-new Handle:hEngageTimer[MAXPLAYERS+1];
 
 new bool:IsAttackingEnemy[MAXPLAYERS+1] = false;
 new bool:MirrorEnabled = false;
@@ -39,7 +38,12 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 
 	hMirrorDamage = FindConVar("neo_ff_feedback");
+}
 
+public OnClientDisconnect(client)
+{
+	if (IsAttackingEnemy[client])
+		IsAttackingEnemy[client] = false;
 }
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
@@ -97,20 +101,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	}
 	
 	else
-	{
 		IsAttackingEnemy[attacker] = true;
-		
-		if (hEngageTimer[attacker] == INVALID_HANDLE)
-			hEngageTimer[attacker] = CreateTimer(3.0, Timer_EnableMirrorAfterEngage, attacker);
-	}
-}
-
-public Action:Timer_EnableMirrorAfterEngage(Handle:timer, any:attacker)
-{
-	if(IsValidClient(attacker))
-		IsAttackingEnemy[attacker] = false;
-		
-	hEngageTimer[attacker] = INVALID_HANDLE;
 }
 
 public Action:DisableMirror(Handle:timer)
