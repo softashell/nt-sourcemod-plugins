@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.6.13"
+#define PLUGIN_VERSION	"0.6.2"
 
 // How much of applied damage attacker recieves (maximum is x4.0)
 #define FF_FEEDBACK_ON 2.0 //Attacker takes double damage
@@ -113,6 +113,8 @@ public Action:DisableMirror(Handle:timer)
 	MirrorEnabled = false;
 
 	ChangeFeedbackValue(FF_FEEDBACK_OFF);
+
+	hMirrorTimer = INVALID_HANDLE;
 }
 
 // Change neo_ff_feedback value and supress notification
