@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.5.1"
+#define PLUGIN_VERSION	"0.6.1"
 
 // How much of applied damage attacker recieves (maximum is x4.0)
 #define FF_FEEDBACK_ON 2.0 //Attacker takes double damage
@@ -25,7 +25,6 @@ public Plugin:myinfo =
 new Handle:hMirrorDamage;
 new Handle:hMirrorTimer;
 
-new bool:IsAttackingEnemy[MAXPLAYERS+1] = false;
 new bool:MirrorEnabled = false;
 
 public OnPluginStart()
@@ -40,22 +39,11 @@ public OnPluginStart()
 	hMirrorDamage = FindConVar("neo_ff_feedback");
 }
 
-public OnClientDisconnect(client)
-{
-	if (IsAttackingEnemy[client])
-		IsAttackingEnemy[client] = false;
-}
-
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	for (new i = 0; i <= MaxClients; i++)
-	{
-		if(IsValidClient(i))
-			IsAttackingEnemy[i] = false;
-	}
-
 	MirrorEnabled = true;
 
+	// Actually enable damage mirroring using built in console command
 	ChangeFeedbackValue(FF_FEEDBACK_ON);
 
 	// Disable mirror damage after 15(freeztime) + FF_PROTECTION_TIME seconds
@@ -85,23 +73,29 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	new victim = GetClientOfUserId(victimId);
 	new attacker = GetClientOfUserId(attackerId);
 
-	if(!IsValidClient(attacker) || victim == attacker || IsAttackingEnemy[attacker])
+	if(!IsValidClient(attacker) || victim == attacker)
 		return;
 
 	new team_victim = GetClientTeam(victim);
 	new team_attacker = GetClientTeam(attacker);
 
+	// Attacking teammate
 	if(team_attacker == team_victim)
 	{
-		if(health <= FF_RESTORE_MIN)
-		{
-			SetEntProp(victim, Prop_Send, "m_iHealth", FF_RESTORE_HP, 1);
-			SetEntProp(victim, Prop_Data, "m_iHealth", FF_RESTORE_HP, 1);
-		}
+		if(health >= FF_RESTORE_MIN)
+			return; // Victim has enough health
+
+		// Restore HP
+		SetEntProp(victim, Prop_Send, "m_iHealth", FF_RESTORE_HP, 1);
+		SetEntProp(victim, Prop_Data, "m_iHealth", FF_RESTORE_HP, 1);
 	}
-	
-	else
-		IsAttackingEnemy[attacker] = true;
+	else // Player is attacking enemy and timer hasn't run out yet
+	{
+		if(hMirrorTimer != Handle:0)
+			KillTimer(hMirrorTimer); // Kill it gently~
+
+		DisableMirror(hMirrorTimer);
+	}
 }
 
 public Action:DisableMirror(Handle:timer)
@@ -128,18 +122,15 @@ ChangeFeedbackValue(Float:feedback)
 	SetConVarFlags(hMirrorDamage, flags);
 }
 
-bool:IsValidClient(client){
-	
-	if (client == 0)
-		return false;
-	
-	if (!IsClientConnected(client))
-		return false;
-	
-	if (IsFakeClient(client))
+stock bool:IsValidClient(client)
+{
+	if ((client < 1) || (client > MaxClients))
 		return false;
 	
 	if (!IsClientInGame(client))
+		return false;
+	
+	if (IsFakeClient(client))
 		return false;
 	
 	return true;
