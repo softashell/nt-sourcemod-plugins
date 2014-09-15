@@ -15,7 +15,7 @@ Changes the name of any **NeotokyoNoob** connecting to random podbot name
 
 nt_mirrordamage
 ====================
-For first 7 seconds of a round by default team attackers will take double the damage they inflict and victim will not lose any health
+For first 7 seconds of a round or before first enemy takes damage by default team attackers will take double damage they inflicted and victim will not lose any health
 
 nt_radio
 ====================
