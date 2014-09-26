@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.6.2"
+#define PLUGIN_VERSION	"0.6.3"
 
 // How much of applied damage attacker recieves (maximum is x4.0)
 #define FF_FEEDBACK_ON 2.0 //Attacker takes double damage
@@ -54,10 +54,6 @@ public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadca
 {
 	if((hMirrorTimer != INVALID_HANDLE) && MirrorEnabled)
 	{
-		KillTimer(hMirrorTimer);
-
-		hMirrorTimer = INVALID_HANDLE;
-
 		DisableMirror(hMirrorTimer);
 	}
 }
@@ -93,13 +89,8 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	}
 	else // Player is attacking enemy and timer hasn't run out yet
 	{
-		if(hMirrorTimer != INVALID_HANDLE)
-		{
-			// Kill it gently~
-			KillTimer(hMirrorTimer);
-
-			hMirrorTimer = INVALID_HANDLE;
-		}
+		if(hMirrorTimer == INVALID_HANDLE)
+			return;
 
 		DisableMirror(hMirrorTimer);
 	}
@@ -113,6 +104,8 @@ public Action:DisableMirror(Handle:timer)
 	MirrorEnabled = false;
 
 	ChangeFeedbackValue(FF_FEEDBACK_OFF);
+
+	KillTimer(timer);
 
 	hMirrorTimer = INVALID_HANDLE;
 }
