@@ -7,7 +7,6 @@ Also gives players 2 XP for every 100 damage assisted (Conflicts with **nt_assis
 nt_ghostcap
 ====================
 Logs ghost capture event so you can award players in HLSTATSX:CE
-[**Use this version as it seems like double cap prevention version causes problems sometimes**](https://github.com/softashell/nt-sourcemod-plugins/blob/1ae0ecfa25d279d2fa47e708f6d688e36bdf7f64/nt_ghostcap.sp)
 
 nt_noobname
 ====================
