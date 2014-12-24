@@ -4,7 +4,7 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION	"1.2"
+#define PLUGIN_VERSION	"1.3"
 
 #define MAXCAPZONES 4
 
@@ -18,7 +18,7 @@ public Plugin:myinfo =
     author = "Soft as HELL",
     description = "Logs ghost capture event",
     version = PLUGIN_VERSION,
-    url = ""
+    url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 public OnPluginStart()
@@ -30,7 +30,8 @@ public OnPluginStart()
     CreateTimer(0.5, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
-public OnMapEnd() {
+public OnMapEnd()
+{
     totalCapzones = 0;
     roundReset = true;
 
@@ -79,26 +80,6 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 
         //PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
         capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
-
-        //Set capzone radius to 0 to disable double capping
-        SetEntProp(capzones[capzone], Prop_Send, "m_Radius", 0);
-    }
-
-    //Enable capzones again after 2 seconds from round start
-    CreateTimer(2.0, timer_EnableCapzones);
-}
-
-public Action:timer_EnableCapzones(Handle:timer, any:client)
-{
-    PrintToServer("Enabling capzones");
-
-    for (new capzone = 0; capzone <= totalCapzones; capzone++)
-    {
-        if(capzones[capzone] == 0) // Worldspawn
-            continue;
-
-        // Set radius to default value again
-        SetEntProp(capzones[capzone], Prop_Send, "m_Radius", capRadius[capzone]);
     }
 }
 
@@ -125,19 +106,19 @@ public Action:CheckGhostPosition(Handle:timer)
 
         for (capzone=0; capzone <= totalCapzones; capzone++)
         {
+
             entity = capzones[capzone];
 
             if(entity == 0) // Worldspawn
                 continue;
 
             if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
+            {
+                PrintCenterText(carrier, "-WRONG CAPTURE POINT-");
                 continue;
+            }
 
             distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
-
-            // If capzone has no radius ingore it
-            if(capRadius[capzone] <= 0)
-                continue;
 
             if(distance <= capRadius[capzone])
             {
@@ -171,7 +152,8 @@ public bool:IsAnyEnemyStillAlive(team)
         if(!IsClientInGame(i))
             continue;
 
-        if(IsPlayerAlive(i)) {
+        if(IsPlayerAlive(i))
+        {
             enemyTeam = GetClientTeam(i);
 
             if((team == 2 && enemyTeam == 3) || (team == 3 && enemyTeam == 2))
