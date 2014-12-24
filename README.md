@@ -1,3 +1,5 @@
+Plugins may use [**sourcemod-nt-include**](https://github.com/softashell/sourcemod-nt-include/), download **.inc** file and place it in your compiler include directory.
+
 nt_damage
 ====================
 Shows detailed damage dealt/received in console on death/round end.
