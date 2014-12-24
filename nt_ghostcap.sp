@@ -112,16 +112,16 @@ public Action:CheckGhostPosition(Handle:timer)
             if(entity == 0) // Worldspawn
                 continue;
 
-            if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
-            {
-                PrintCenterText(carrier, "-WRONG CAPTURE POINT-");
-                continue;
-            }
-
             distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
             if(distance <= capRadius[capzone])
             {
+                if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
+                {
+                    PrintCenterText(carrier, "- WRONG CAPTURE POINT -");
+                    continue;
+                }
+
                 if (!IsAnyEnemyStillAlive(carrierTeamID))
                     return; // Don't get anything if enemy team is dead already
 
