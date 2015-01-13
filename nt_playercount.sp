@@ -16,6 +16,7 @@ public Plugin:myinfo =
 #define MESSAGE_DUEL 	"You're dueling against enemy last player, don't drag this out!"
 
 new bool:g_MessageShownLast[MAXPLAYERS];
+new Handle:hPlayerCounter;
 
 public OnPluginStart()
 {
@@ -29,11 +30,24 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 
 	for(client = 1; client <= MaxClients; client++)
 		g_MessageShownLast[client] = false;
+
+	if(hPlayerCounter != INVALID_HANDLE)
+		KillTimer(hPlayerCounter);
+
+	hPlayerCounter = INVALID_HANDLE;
 }
 
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if(hPlayerCounter == INVALID_HANDLE)
+		hPlayerCounter = CreateTimer(1.0, CountPlayers);
+}
+
+public Action:CountPlayers(Handle:timer)
+{
 	new client, countTotal, countJin, countNsf, lastJin, lastNsf;
+
+	hPlayerCounter = INVALID_HANDLE;
 
 	for(client = 1; client <= MaxClients; client++)
 	{
@@ -67,27 +81,27 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 
 	if(countJin == 1 && countNsf == 1)
 	{
-		if(countTotal <=2)
+		if(countTotal <= 2)
 			return;
 
-		Duel(lastJin);
-		Duel(lastNsf);
+		return;
+		//Duel(lastJin);
+		//Duel(lastNsf);
 	}
-	if(countJin > 1)
+	else if(countJin >= 2)
 	{
 		if(countNsf == 1)
 		{
 			LastManStanding(lastNsf);
 		}
 	}
-	else if (countNsf > 1)
+	else if (countNsf >= 2)
 	{
 		if(countJin == 1)
 		{
 			LastManStanding(lastJin);
 		}
 	}
-
 }
 
 LastManStanding(client)
@@ -95,7 +109,6 @@ LastManStanding(client)
 	if(!IsPlayerAlive(client) || g_MessageShownLast[client])
 		return;
 
-	PrintCenterText(client, MESSAGE_LASTMAN);
 	PrintToChat(client, MESSAGE_LASTMAN);
 
 	g_MessageShownLast[client] = true;
@@ -103,6 +116,5 @@ LastManStanding(client)
 
 Duel(client)
 {
-	PrintCenterText(client, MESSAGE_DUEL);
 	PrintToChat(client, MESSAGE_DUEL);
 }
