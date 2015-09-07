@@ -139,7 +139,7 @@ DB_insertScore(client)
 	decl String:steamID[30], String:query[200];
 	new xp, deaths;
 	
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID));
 
 	xp = GetXP(client);
 	deaths = GetDeaths(client);
@@ -156,7 +156,7 @@ DB_deleteScore(client)
 
 	decl String:steamID[30], String:query[200];
 
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID));
 
 	Format(query, sizeof(query), "DELETE FROM nt_saved_score WHERE steamID = '%s';", steamID);
 
@@ -172,7 +172,7 @@ DB_retrieveScore(client)
 
 	decl String:steamID[30], String:query[200];
 	
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID));
 
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
 
