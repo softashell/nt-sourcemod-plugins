@@ -28,7 +28,8 @@ public OnPluginStart()
 	AddCommandListener(cmd_JoinTeam, "jointeam");
 
 	HookEvent("game_round_start", event_RoundStart);
-
+//	HookEvent("player_disconnect", Event_PlayerDisconnect);
+	
 	// Create new database if it doesn't exist
 	DB_init();
 
@@ -120,6 +121,7 @@ DB_init()
 	SQL_FastQuery(hDB, "CREATE TABLE IF NOT EXISTS nt_saved_score (steamID TEXT PRIMARY KEY, xp SMALLINT, deaths SMALLINT);");
 	
 	SQL_UnlockDatabase(hDB);
+//	LogMessage("DBinitialized");
 }
 
 DB_clear()
@@ -129,6 +131,7 @@ DB_clear()
 	SQL_FastQuery(hDB, "DELETE FROM nt_saved_score;");
 
 	SQL_UnlockDatabase(hDB);
+//	LogMessage("DBcleared");
 }
 
 DB_insertScore(client)
@@ -139,7 +142,7 @@ DB_insertScore(client)
 	decl String:steamID[30], String:query[200];
 	new xp, deaths;
 	
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
 	xp = GetXP(client);
 	deaths = GetDeaths(client);
@@ -147,6 +150,7 @@ DB_insertScore(client)
 	Format(query, sizeof(query), "INSERT OR REPLACE INTO nt_saved_score VALUES ('%s', %d, %d);", steamID, xp, deaths);
 	
 	SQL_FastQuery(hDB, query);
+//	LogMessage("insertscore");
 }
 
 DB_deleteScore(client)
@@ -156,11 +160,12 @@ DB_deleteScore(client)
 
 	decl String:steamID[30], String:query[200];
 
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
 	Format(query, sizeof(query), "DELETE FROM nt_saved_score WHERE steamID = '%s';", steamID);
 
 	SQL_FastQuery(hDB, query);
+//	LogMessage("deletescore");
 }
 
 DB_retrieveScore(client)
@@ -172,11 +177,12 @@ DB_retrieveScore(client)
 
 	decl String:steamID[30], String:query[200];
 	
-	GetClientAuthString(client, steamID, sizeof(steamID));
+	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
 
 	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, client);
+//	LogMessage("retrievescore");
 }
 
 public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[], any:client)
