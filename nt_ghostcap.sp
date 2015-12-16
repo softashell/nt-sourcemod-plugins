@@ -4,13 +4,15 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION	"1.3.1"
+#define PLUGIN_VERSION	"1.3.2"
 
 #define MAXCAPZONES 4
 
+new Handle:g_hRoundTime;
+
 new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
 
-new ghost, totalCapzones, thisRoundCapper = 0, bool:roundReset = true;
+new ghost, totalCapzones, thisRoundCapper = 0, bool:roundReset = true, Float:fStartRoundTime;
 
 public Plugin:myinfo =
 {
@@ -33,6 +35,8 @@ public OnPluginStart()
 	CreateConVar("sm_ntghostcapevent_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
+	
+	g_hRoundTime = FindConVar("neo_round_timelimit");
 
 	CreateTimer(0.5, CheckGhostPosition, _, TIMER_REPEAT);
 }
@@ -70,6 +74,7 @@ public OnEntityCreated(entity, const String:classname[])
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	fStartRoundTime = GetGameTime();
 	// After freezetime, reset last round's capper info native.
 	// Any 3rd party plugin should have called the native by now during the roundstart event.
 	CreateTimer(10.0, Timer_ResetCapperInfo_LastRound);
@@ -115,6 +120,12 @@ public Action:timer_EnableCapzones(Handle:timer, any:client)
 
 public Action:CheckGhostPosition(Handle:timer)
 {
+	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
+	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
+	
+	if (currentRoundTime > maxRoundTime)
+		return; // This round has already ended, don't trigger caps until next round starts
+	
 	if (!totalCapzones || !IsValidEdict(ghost))
 		return; // No capzones or no ghost
 
