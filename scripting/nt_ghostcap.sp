@@ -5,12 +5,12 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.4.1"
+#define PLUGIN_VERSION	"1.4.46"
 
 #define MAXCAPZONES 4
 #define INACCURACY 1
 
-new Handle:g_hRoundTime, Handle:g_hDoubleCap, Handle:g_hCaptureForward;
+new Handle:g_hRoundTime, Handle:g_hDoubleCap, Handle:g_hForwardCapture, Handle:g_hForwardSpawn;
 
 new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
 
@@ -33,7 +33,8 @@ public OnPluginStart()
 
 	g_hRoundTime = FindConVar("neo_round_timelimit");
 
-	g_hCaptureForward = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
+	g_hForwardCapture = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
+	g_hForwardSpawn = CreateGlobalForward("OnGhostSpawn", ET_Event, Param_Cell);
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 
@@ -58,6 +59,8 @@ public OnEntityCreated(entity, const String:classname[])
 	if (StrEqual(classname, "weapon_ghost"))
 	{
 		ghost = entity;
+
+		PushOnGhostSpawn(ghost);
 	}
 	else if(StrEqual(classname, "neo_ghost_retrieval_point"))
 	{
@@ -234,7 +237,14 @@ bool:UpdateCapzoneData(capzone)
 
 PushOnGhostCapture(client)
 {
-	Call_StartForward(g_hCaptureForward);
+	Call_StartForward(g_hForwardCapture);
 	Call_PushCell(client);
+	Call_Finish();
+}
+
+PushOnGhostSpawn(entity)
+{
+	Call_StartForward(g_hForwardSpawn);
+	Call_PushCell(entity);
 	Call_Finish();
 }
