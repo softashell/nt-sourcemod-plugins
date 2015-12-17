@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.3.4"
+#define PLUGIN_VERSION	"1.4.1"
 
 #define MAXCAPZONES 4
 #define INACCURACY 1
@@ -14,7 +14,7 @@ new Handle:g_hRoundTime, Handle:g_hDoubleCap, Handle:g_hCaptureForward;
 
 new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
 
-new ghost, totalCapzones, thisRoundCapper = 0, bool:roundReset = true, Float:fStartRoundTime;
+new ghost, totalCapzones, bool:roundReset = true, Float:fStartRoundTime;
 
 public Plugin:myinfo =
 {
@@ -24,13 +24,6 @@ public Plugin:myinfo =
 	version = PLUGIN_VERSION,
 	url = ""
 };
-
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
-{
-	CreateNative("Ghostcap_CapInfo", Ghostcap_CapInfo);
-	
-	return APLRes_Success;
-}
 
 public OnPluginStart()
 {
@@ -83,10 +76,6 @@ public OnEntityCreated(entity, const String:classname[])
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	fStartRoundTime = GetGameTime();
-
-	// After freezetime, reset last round's capper info native.
-	// Any 3rd party plugin should have called the native by now during the roundstart event.
-	CreateTimer(10.0, timer_ResetCapperInfo_LastRound);
 	
 	if(!totalCapzones) // No cap zones
 		return;
@@ -137,11 +126,6 @@ public Action:timer_EnableCapzones(Handle:timer, any:client)
 		// Set radius to default value again
 		SetEntProp(capzones[capzone], Prop_Send, "m_Radius", capRadius[capzone]);
 	}
-}
-
-public Action:timer_ResetCapperInfo_LastRound(Handle:timer)
-{
-	thisRoundCapper = 0;
 }
 
 public Action:CheckGhostPosition(Handle:timer)
@@ -198,9 +182,6 @@ public Action:CheckGhostPosition(Handle:timer)
 				PushOnGhostCapture(carrier);
 				
 				new carrierUserID = GetClientUserId(carrier);
-				new team = GetClientTeam(carrier);
-
-				thisRoundCapper = team;
 				
 				GetClientAuthId(carrier, AuthId_Steam2, carrierSteamID, 64);
 				GetTeamName(carrierTeamID, carrierTeam, sizeof(carrierTeam));
@@ -249,11 +230,6 @@ bool:UpdateCapzoneData(capzone)
 	//PrintToServer("Updating data! Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
 
 	return true;
-}
-
-public Ghostcap_CapInfo(Handle:plugin, numParams)
-{
-	return thisRoundCapper;
 }
 
 PushOnGhostCapture(client)
