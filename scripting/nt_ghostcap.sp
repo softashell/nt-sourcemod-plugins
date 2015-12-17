@@ -3,22 +3,23 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <neotokyo>
 
-#define PLUGIN_VERSION	"1.3.3"
+#define PLUGIN_VERSION	"1.3.4"
 
 #define MAXCAPZONES 4
+#define INACCURACY 1
 
-new Handle:g_hRoundTime;
+new Handle:g_hRoundTime, Handle:g_hDoubleCap, Handle:g_hCaptureForward;
 
 new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
 
 new ghost, totalCapzones, thisRoundCapper = 0, bool:roundReset = true, Float:fStartRoundTime;
-new inaccuracy = 1;
 
 public Plugin:myinfo =
 {
 	name = "NEOTOKYO° Ghost capture event",
-	author = "Soft as HELL",
+	author = "soft as HELL",
 	description = "Logs ghost capture event",
 	version = PLUGIN_VERSION,
 	url = ""
@@ -33,11 +34,15 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
-	CreateConVar("sm_ntghostcapevent_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+
+	g_hDoubleCap = CreateConVar("sm_ntghostcap_doublecap", "0", "Enable/Disable doublecap prevention");
+
+	g_hRoundTime = FindConVar("neo_round_timelimit");
+
+	g_hCaptureForward = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
-	
-	g_hRoundTime = FindConVar("neo_round_timelimit");
 
 	CreateTimer(0.5, CheckGhostPosition, _, TIMER_REPEAT);
 }
@@ -46,7 +51,9 @@ public OnMapEnd() {
 	totalCapzones = 0;
 	roundReset = true;
 
-	for(new i; i <= MAXCAPZONES; i++)
+	new i;
+
+	for(i = 0; i <= MAXCAPZONES; i++)
 	{
 		capzones[i] = 0;
 		capzoneDataUpdated[i] = false;
@@ -76,14 +83,25 @@ public OnEntityCreated(entity, const String:classname[])
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	fStartRoundTime = GetGameTime();
+
 	// After freezetime, reset last round's capper info native.
 	// Any 3rd party plugin should have called the native by now during the roundstart event.
-	CreateTimer(10.0, Timer_ResetCapperInfo_LastRound);
+	CreateTimer(10.0, timer_ResetCapperInfo_LastRound);
 	
 	if(!totalCapzones) // No cap zones
 		return;
 	
 	roundReset = true; // Allow logging of capture again
+
+	new bool:doublecap = (GetConVarInt(g_hDoubleCap) > 0);
+
+	if(doublecap)
+	{
+		PrintToServer("Disabling capzones");
+
+		//Enable capzones again after 2 seconds from round start
+		CreateTimer(2.0, timer_EnableCapzones);
+	}
 
 	// Update capzone team every round
 	for (new capzone = 0; capzone <= totalCapzones; capzone++)
@@ -97,19 +115,21 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		//PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
 		capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
 
-		//Set capzone radius to 0 to disable double capping
-		SetEntProp(capzones[capzone], Prop_Send, "m_Radius", 0);
+		if(doublecap)
+		{
+			//Set capzone radius to 0 to disable double capping
+			SetEntProp(capzones[capzone], Prop_Send, "m_Radius", 0);
+		}
 	}
-
-	//Enable capzones again after 2 seconds from round start
-	CreateTimer(2.0, timer_EnableCapzones);
 }
 
 public Action:timer_EnableCapzones(Handle:timer, any:client)
 {
 	PrintToServer("Enabling capzones");
 
-	for (new capzone = 0; capzone <= totalCapzones; capzone++)
+	new capzone;
+
+	for (capzone = 0; capzone <= totalCapzones; capzone++)
 	{
 		if(capzones[capzone] == 0) // Worldspawn
 			continue;
@@ -119,12 +139,17 @@ public Action:timer_EnableCapzones(Handle:timer, any:client)
 	}
 }
 
+public Action:timer_ResetCapperInfo_LastRound(Handle:timer)
+{
+	thisRoundCapper = 0;
+}
+
 public Action:CheckGhostPosition(Handle:timer)
 {
 	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
 	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
 	
-	if (currentRoundTime > maxRoundTime + inaccuracy)
+	if (currentRoundTime > maxRoundTime + INACCURACY)
 		return; // This round has already ended, don't trigger caps until next round starts
 	
 	if (!totalCapzones || !IsValidEdict(ghost))
@@ -146,7 +171,7 @@ public Action:CheckGhostPosition(Handle:timer)
 
 		GetClientAbsOrigin(carrier, ghostVector);
 
-		for (capzone=0; capzone <= totalCapzones; capzone++)
+		for (capzone = 0; capzone <= totalCapzones; capzone++)
 		{
 			entity = capzones[capzone];
 
@@ -170,10 +195,11 @@ public Action:CheckGhostPosition(Handle:timer)
 				roundReset = false; // Won't spam any more events unless value is set to true
 				
 				//PrintToChatAll("Captured the ghost! Capzone: %i", capzone);
+				PushOnGhostCapture(carrier);
 				
 				new carrierUserID = GetClientUserId(carrier);
-				
 				new team = GetClientTeam(carrier);
+
 				thisRoundCapper = team;
 				
 				GetClientAuthId(carrier, AuthId_Steam2, carrierSteamID, 64);
@@ -189,15 +215,11 @@ public Action:CheckGhostPosition(Handle:timer)
 
 }
 
-public Action:Timer_ResetCapperInfo_LastRound(Handle:timer)
+bool:IsAnyEnemyStillAlive(team)
 {
-	thisRoundCapper = 0;
-}
+	new enemyTeam, i;
 
-public bool:IsAnyEnemyStillAlive(team)
-{
-	new enemyTeam;
-	for(new i = 1; i <= MaxClients; i++)
+	for(i = 1; i <= MaxClients; i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -205,7 +227,7 @@ public bool:IsAnyEnemyStillAlive(team)
 		if(IsPlayerAlive(i)) {
 			enemyTeam = GetClientTeam(i);
 
-			if((team == 2 && enemyTeam == 3) || (team == 3 && enemyTeam == 2))
+			if((team == TEAM_JINRAI && enemyTeam == TEAM_NSF) || (team == TEAM_NSF && enemyTeam == TEAM_JINRAI))
 				return true;
 		}
 	}
@@ -232,4 +254,11 @@ bool:UpdateCapzoneData(capzone)
 public Ghostcap_CapInfo(Handle:plugin, numParams)
 {
 	return thisRoundCapper;
+}
+
+PushOnGhostCapture(client)
+{
+	Call_StartForward(g_hCaptureForward);
+	Call_PushCell(client);
+	Call_Finish();
 }
