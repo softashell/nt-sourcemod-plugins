@@ -4,7 +4,7 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION	"1.3.2"
+#define PLUGIN_VERSION	"1.3.3"
 
 #define MAXCAPZONES 4
 
@@ -13,6 +13,7 @@ new Handle:g_hRoundTime;
 new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
 
 new ghost, totalCapzones, thisRoundCapper = 0, bool:roundReset = true, Float:fStartRoundTime;
+new inaccuracy = 1;
 
 public Plugin:myinfo =
 {
@@ -123,7 +124,7 @@ public Action:CheckGhostPosition(Handle:timer)
 	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
 	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
 	
-	if (currentRoundTime > maxRoundTime)
+	if (currentRoundTime > maxRoundTime + inaccuracy)
 		return; // This round has already ended, don't trigger caps until next round starts
 	
 	if (!totalCapzones || !IsValidEdict(ghost))
