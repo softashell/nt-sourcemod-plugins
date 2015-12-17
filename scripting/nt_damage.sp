@@ -2,6 +2,7 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <neotokyo>
 
 #define PLUGIN_VERSION	"0.3"
 
@@ -13,6 +14,8 @@ public Plugin:myinfo =
     version = PLUGIN_VERSION,
     url = ""
 };
+
+new Handle:g_hAwardAssists, Handle:g_hAwardDamage, Handle:g_hAwardPoints;
 
 new bool:g_SeenReport[MAXPLAYERS+1];
 
@@ -28,6 +31,11 @@ new g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 public OnPluginStart()
 {
 	CreateConVar("sm_ntdamage_version", PLUGIN_VERSION, "NEOTOKYO° Damage counter", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+
+	g_hAwardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
+	g_hAwardDamage = CreateConVar("sm_ntdamage_damage", "100", "Total damage required to trigger assist");
+	g_hAwardPoints = CreateConVar("sm_ntdamage_points", "2", "Points given for each assist");
+
 	
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
@@ -106,10 +114,11 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 
 	g_SeenReport[victim] = true;
 
-	AvardAssists(victim, attacker);
+	if(GetConVarInt(g_hAwardAssists) > 0)
+		AwardAssists(victim, attacker);
 }
 
-public DamageReport(client)
+DamageReport(client)
 {
 	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken;
 
@@ -147,7 +156,7 @@ public DamageReport(client)
 	PrintToConsole(client, "================================================");
 }
 
-public AvardAssists(client, killer)
+AwardAssists(client, killer)
 {
 	new damage, hits;
 
@@ -177,16 +186,18 @@ public AvardAssists(client, killer)
 	}
 }
 
-stock CheckAssists(client)
+CheckAssists(client)
 {
 	if(!IsValidClient(client))
 		return;
 
-	if(g_PlayerAssist[client] >= 100)
-	{
-		SetXP(client, GetXP(client) + 2);
+	new target_damage = GetConVarInt(g_hAwardDamage);
 
-		g_PlayerAssist[client] -= 100;
+	if(g_PlayerAssist[client] >= target_damage)
+	{
+		SetPlayerXP(client, GetPlayerXP(client) + GetConVarInt(g_hAwardPoints));
+
+		g_PlayerAssist[client] -= target_damage;
 
 		PrintToChat(client, "[NT°] You gained 2 XP for assists");
 		PrintToConsole(client, "[NT°] You gained 2 XP for assists");
@@ -195,45 +206,9 @@ stock CheckAssists(client)
 		new userID, String:steamID[64], String:team[18];
 		
 		userID = GetClientUserId(client);
-		GetClientAuthString(client, steamID, 64);
+		GetClientAuthId(client,AuthId_Steam2, steamID, 64);
 		GetTeamName(GetClientTeam(client), team, sizeof(team));
 
 		LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
 	}
-}
-
-stock SetXP(client, xp)
-{
-	new rank = 0; // Rankless dog
-
-	if(xp >= 0 && xp <= 3)
-		rank = 1; // Private
-	else if(xp >= 4 && xp <= 9)
-		rank = 2; // Corporal
-	else if(xp >= 10 && xp <= 19)
-		rank = 3; // Sergeant
-	else if(xp >= 20)
-		rank = 4; // Lieutenant
-
-	SetEntProp(client, Prop_Data, "m_iFrags", xp);
-	SetEntProp(client, Prop_Send, "m_iRank", rank);
-}
-
-stock GetXP(client)
-{
-	return GetClientFrags(client);
-}
-
-stock bool:IsValidClient(client)
-{
-	if ((client < 1) || (client > MaxClients))
-		return false;
-	
-	if (!IsClientInGame(client))
-		return false;
-	
-	if (IsFakeClient(client))
-		return false;
-	
-	return true;
 }

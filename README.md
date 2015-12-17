@@ -3,6 +3,10 @@ Plugins may use [**sourcemod-nt-include**](https://github.com/softashell/sourcem
 nt_damage
 ====================
 Shows detailed damage dealt/received in console on death/round end.
+Also adds optional assist awards since it keeps track of damage anyway
+- **sm_ntdamage_assists** 0 - Enable/Disable rewarding of assists
+- **sm_ntdamage_damage** 100 - Total damage required to trigger assist
+- **sm_ntdamage_points** 2 - Points given for each assist
 
 Also gives players 2 XP for every 100 damage assisted (Conflicts with **nt_assist** plugin!)
 
