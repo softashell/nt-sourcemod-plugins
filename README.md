@@ -11,7 +11,8 @@ Also adds optional assist awards since it keeps track of damage anyway
 
 nt_ghostcap
 ====================
-Logs ghost capture event so you can award players in HLSTATSX:CE
+Logs ghost capture event so you can award players in HLSTATSX:CE, also creates OnGhostCapture(client) forward other plugins can use (example in nt_ghostcap_test.sp)
+- **sm_ntghostcap_doublecap** 0 - Enable/Disable experimental double capture prevention, in rare cases it can disable ghost capturing completely for the map so it's disabled by default
 
 nt_noobname
 ====================
