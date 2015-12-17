@@ -1,21 +1,19 @@
 #pragma semicolon 1
 
 #include <sourcemod>
+#include <neotokyo>
 
 public Plugin:myinfo =
 {
     name = "NEOTOKYO° Temporary score saver",
-    author = "Soft as HELL",
+    author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.1",
+    version = "0.2",
     url = ""
 };
 
 new Handle:hDB, Handle:hRestartGame, Handle:hResetScoresTimer;
-
-new bool:bScoreLoaded[MAXPLAYERS+1];
-
-new bool:bResetScores;
+new bool:bScoreLoaded[MAXPLAYERS+1], bool:bResetScores;
 
 public OnPluginStart()
 {
@@ -28,7 +26,6 @@ public OnPluginStart()
 	AddCommandListener(cmd_JoinTeam, "jointeam");
 
 	HookEvent("game_round_start", event_RoundStart);
-//	HookEvent("player_disconnect", Event_PlayerDisconnect);
 	
 	// Create new database if it doesn't exist
 	DB_init();
@@ -62,6 +59,8 @@ public RestartGame(Handle:convar, const String:oldValue[], const String:newValue
 public Action:ResetScoresNextRound(Handle:timer)
 {
 	bResetScores = true;
+
+	hResetScoresTimer = INVALID_HANDLE;
 }
 
 public OnClientDisconnect(client)
@@ -121,7 +120,6 @@ DB_init()
 	SQL_FastQuery(hDB, "CREATE TABLE IF NOT EXISTS nt_saved_score (steamID TEXT PRIMARY KEY, xp SMALLINT, deaths SMALLINT);");
 	
 	SQL_UnlockDatabase(hDB);
-//	LogMessage("DBinitialized");
 }
 
 DB_clear()
@@ -131,7 +129,6 @@ DB_clear()
 	SQL_FastQuery(hDB, "DELETE FROM nt_saved_score;");
 
 	SQL_UnlockDatabase(hDB);
-//	LogMessage("DBcleared");
 }
 
 DB_insertScore(client)
@@ -144,13 +141,12 @@ DB_insertScore(client)
 	
 	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
-	xp = GetXP(client);
-	deaths = GetDeaths(client);
+	xp = GetPlayerXP(client);
+	deaths = GetPlayerDeaths(client);
 	
 	Format(query, sizeof(query), "INSERT OR REPLACE INTO nt_saved_score VALUES ('%s', %d, %d);", steamID, xp, deaths);
 	
 	SQL_FastQuery(hDB, query);
-//	LogMessage("insertscore");
 }
 
 DB_deleteScore(client)
@@ -165,7 +161,6 @@ DB_deleteScore(client)
 	Format(query, sizeof(query), "DELETE FROM nt_saved_score WHERE steamID = '%s';", steamID);
 
 	SQL_FastQuery(hDB, query);
-//	LogMessage("deletescore");
 }
 
 DB_retrieveScore(client)
@@ -182,7 +177,6 @@ DB_retrieveScore(client)
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
 
 	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, client);
-//	LogMessage("retrievescore");
 }
 
 public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[], any:client)
@@ -204,8 +198,8 @@ public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[],
 
 	if(xp != 0 || deaths != 0)
 	{
-		SetXP(client, xp);
-		SetDeaths(client, deaths);
+		SetPlayerXP(client, xp);
+		SetPlayerDeaths(client, deaths);
 	}
 
 	PrintToChat(client, "[NT°] Saved score restored!");
@@ -213,50 +207,4 @@ public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[],
 
 	// Remove score from DB after it has been loaded
 	DB_deleteScore(client);
-}
-
-stock bool:IsValidClient(client)
-{
-	if ((client < 1) || (client > MaxClients))
-		return false;
-	
-	if (!IsClientInGame(client))
-		return false;
-	
-	if (IsFakeClient(client))
-		return false;
-	
-	return true;
-}
-
-SetXP(client, xp)
-{
-	new rank = 0; // Rankless dog
-
-	if(xp >= 0 && xp <= 3)
-		rank = 1; // Private
-	else if(xp >= 4 && xp <= 9)
-		rank = 2; // Corporal
-	else if(xp >= 10 && xp <= 19)
-		rank = 3; // Sergeant
-	else if(xp >= 20)
-		rank = 4; // Lieutenant
-
-	SetEntProp(client, Prop_Data, "m_iFrags", xp);
-	SetEntProp(client, Prop_Send, "m_iRank", rank);
-}
-
-GetXP(client)
-{
-	return GetClientFrags(client);
-}
-
-stock SetDeaths(client, deaths)
-{
-	SetEntProp(client, Prop_Data, "m_iDeaths", deaths);
-}
-
-stock GetDeaths(client)
-{
-	return GetEntProp(client, Prop_Data, "m_iDeaths");	
 }
