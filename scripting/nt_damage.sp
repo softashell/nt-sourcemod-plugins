@@ -4,18 +4,18 @@
 #include <sdktools>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"0.4"
+#define PLUGIN_VERSION	"0.5"
 
 public Plugin:myinfo =
 {
     name = "NEOTOKYO° Damage counter",
-    author = "Soft as HELL",
+    author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
     version = PLUGIN_VERSION,
     url = ""
 };
 
-new Handle:g_hAwardAssists, Handle:g_hAwardDamage, Handle:g_hAwardPoints;
+new Handle:g_hRewardAssists, Handle:g_hAssistDamage, Handle:g_hAssistPoints;
 
 new bool:g_SeenReport[MAXPLAYERS+1];
 
@@ -32,11 +32,10 @@ public OnPluginStart()
 {
 	CreateConVar("sm_ntdamage_version", PLUGIN_VERSION, "NEOTOKYO° Damage counter", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
-	g_hAwardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
-	g_hAwardDamage = CreateConVar("sm_ntdamage_damage", "100", "Total damage required to trigger assist");
-	g_hAwardPoints = CreateConVar("sm_ntdamage_points", "2", "Points given for each assist");
+	g_hRewardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
+	g_hAssistDamage = CreateConVar("sm_ntdamage_damage", "100", "Total damage required to trigger assist");
+	g_hAssistPoints = CreateConVar("sm_ntdamage_points", "2", "Points given for each assist");
 
-	
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -114,16 +113,16 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 
 	g_SeenReport[victim] = true;
 
-	if(GetConVarInt(g_hAwardAssists) > 0)
-		AwardAssists(victim, attacker);
+	if(GetConVarInt(g_hRewardAssists) > 0)
+		RewardAssists(victim, attacker);
 }
 
 DamageReport(client)
 {
-	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken;
+	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken, victim, attacker;
 
 	PrintToConsole(client, "================================================");
-	for(new victim = 1; victim <= MaxClients; victim++)
+	for(victim = 1; victim <= MaxClients; victim++)
 	{
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
@@ -137,7 +136,7 @@ DamageReport(client)
 		}
 	}
 
-	for(new attacker = 1; attacker <= MaxClients; attacker++)
+	for(attacker = 1; attacker <= MaxClients; attacker++)
 	{
 		if(!IsValidClient(attacker))
 			continue;
@@ -156,20 +155,20 @@ DamageReport(client)
 	PrintToConsole(client, "================================================");
 }
 
-AwardAssists(client, killer)
+RewardAssists(client, killer)
 {
-	new damage, hits;
+	new damage, hits, attacker;
 
-	for(new attacker = 1; attacker <= MaxClients; attacker++)
+	for(attacker = 1; attacker <= MaxClients; attacker++)
 	{
 		if(attacker == killer)
-			continue; // Don't give assist to player who killed client
+			continue; // Ignore the killer
 
 		if(!IsValidClient(attacker))
 			continue;
 
 		if(GetClientTeam(client) == GetClientTeam(attacker))
-			continue; // Ignore teammate damage
+			continue; // Ignore team damage
 
 		damage = g_DamageTaken[client][attacker];
 		hits = g_HitsTaken[client][attacker];
@@ -191,11 +190,11 @@ CheckAssists(client)
 	if(!IsValidClient(client))
 		return;
 
-	new target_damage = GetConVarInt(g_hAwardDamage);
+	new target_damage = GetConVarInt(g_hAssistDamage);
 
 	if(g_PlayerAssist[client] >= target_damage)
 	{
-		SetPlayerXP(client, GetPlayerXP(client) + GetConVarInt(g_hAwardPoints));
+		SetPlayerXP(client, GetPlayerXP(client) + GetConVarInt(g_hAssistPoints));
 
 		g_PlayerAssist[client] -= target_damage;
 
