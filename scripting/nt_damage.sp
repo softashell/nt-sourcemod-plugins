@@ -4,7 +4,7 @@
 #include <sdktools>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"0.5"
+#define PLUGIN_VERSION	"0.5.1"
 
 public Plugin:myinfo =
 {
@@ -191,21 +191,22 @@ CheckAssists(client)
 		return;
 
 	new target_damage = GetConVarInt(g_hAssistDamage);
+	new reward_points = GetConVarInt(g_hAssistPoints);
 
 	if(g_PlayerAssist[client] >= target_damage)
 	{
-		SetPlayerXP(client, GetPlayerXP(client) + GetConVarInt(g_hAssistPoints));
+		SetPlayerXP(client, GetPlayerXP(client) + reward_points);
 
 		g_PlayerAssist[client] -= target_damage;
 
-		PrintToChat(client, "[NT°] You gained 2 XP for assists");
-		PrintToConsole(client, "[NT°] You gained 2 XP for assists");
+		PrintToChat(client, "[NT°] You gained %i XP for assists", reward_points);
+		PrintToConsole(client, "[NT°] You gained %i XP for assists", reward_points);
 
 		// Log kill_assist event
 		new userID, String:steamID[64], String:team[18];
 		
 		userID = GetClientUserId(client);
-		GetClientAuthId(client,AuthId_Steam2, steamID, 64);
+		GetClientAuthId(client, AuthId_Steam2, steamID, 64);
 		GetTeamName(GetClientTeam(client), team, sizeof(team));
 
 		LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
