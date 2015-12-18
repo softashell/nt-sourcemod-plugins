@@ -47,6 +47,6 @@ RemoveGhost(client)
 	}
 
 	// Delete ghost
-	if (IsValidEdict(ghost))
+	if(IsValidEdict(ghost))
 		RemoveEdict(ghost);
 }
