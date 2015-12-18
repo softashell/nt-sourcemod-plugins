@@ -5,10 +5,10 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.5.2"
+#define PLUGIN_VERSION	"1.5.3"
 
 #define MAXCAPZONES 4
-#define INACCURACY 1
+#define INACCURACY 0.35
 
 new Handle:g_hRoundTime, Handle:g_hForwardCapture, Handle:g_hForwardSpawn;
 
@@ -36,7 +36,7 @@ public OnPluginStart()
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 
-	CreateTimer(0.5, CheckGhostPosition, _, TIMER_REPEAT);
+	CreateTimer(0.25, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
 public OnMapEnd() {
