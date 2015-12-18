@@ -121,7 +121,7 @@ DamageReport(client)
 {
 	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken, victim, attacker;
 
-	PrintToConsole(client, "================================================");
+	PrintToConsole(client, "------------------------------------------------");
 	for(victim = 1; victim <= MaxClients; victim++)
 	{
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
@@ -152,7 +152,7 @@ DamageReport(client)
 
 	PrintToConsole(client, "Total damage dealt: %i in %i hits", totalDamageDealt, totalHitsDealt);
 	PrintToConsole(client, "Total damage received from players: %i in %i hits", totalDamageTaken, totalHitsTaken);
-	PrintToConsole(client, "================================================");
+	PrintToConsole(client, "------------------------------------------------");
 }
 
 RewardAssists(client, killer)
