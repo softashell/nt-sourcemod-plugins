@@ -8,7 +8,7 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL",
     description = "Removes ghost as soon as it's captured",
-    version = "0.2",
+    version = "0.3",
     url = ""
 };
 
@@ -47,5 +47,6 @@ RemoveGhost(client)
 	}
 
 	// Delete ghost
-	RemoveEdict(ghost);
+	if (IsValidEdict(ghost))
+		RemoveEdict(ghost);
 }
