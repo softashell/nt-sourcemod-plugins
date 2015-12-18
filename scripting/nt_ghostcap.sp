@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.5.1"
+#define PLUGIN_VERSION	"1.5.2"
 
 #define MAXCAPZONES 4
 #define INACCURACY 1
@@ -99,40 +99,34 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 
 public Action:CheckGhostPosition(Handle:timer)
 {
-	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
-	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
-	
-	if (currentRoundTime > maxRoundTime + INACCURACY)
-		return; // This round has already ended, don't trigger caps until next round starts
-	
 	if (!totalCapzones || !IsValidEdict(ghost))
 		return; // No capzones or no ghost
 
-	decl Float:ghostVector[3], Float:distance;
-	decl String:carrierSteamID[64], String:carrierTeam[18];
+	if (HasRoundEnded())
+		return;
 
-	new capzone, entity, carrier, carrierTeamID;
+	decl Float:ghostVector[3], Float:distance;
+
+	new capzone, carrier, carrierTeamID;
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
-	if(!roundReset || carrier < 1 || carrier > MaxClients)
+	if(carrier < 1 || carrier > MaxClients)
 		return;
 
 	if (IsClientInGame(carrier) && IsPlayerAlive(carrier))
 	{
 		carrierTeamID = GetClientTeam(carrier);
 
-		GetClientAbsOrigin(carrier, ghostVector);
-
 		for (capzone = 0; capzone <= totalCapzones; capzone++)
 		{
-			entity = capzones[capzone];
-
-			if(entity == 0) // Worldspawn
+			if(capzones[capzone] == 0) // Worldspawn
 				continue;
 
 			if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
 				continue;
+
+			GetClientAbsOrigin(carrier, ghostVector);
 
 			distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
@@ -150,6 +144,7 @@ public Action:CheckGhostPosition(Handle:timer)
 				//PrintToChatAll("Captured the ghost! Capzone: %i", capzone);
 				PushOnGhostCapture(carrier);
 				
+				decl String:carrierSteamID[64], String:carrierTeam[18];	
 				new carrierUserID = GetClientUserId(carrier);
 				
 				GetClientAuthId(carrier, AuthId_Steam2, carrierSteamID, 64);
@@ -199,6 +194,20 @@ bool:UpdateCapzoneData(capzone)
 	//PrintToServer("Updating data! Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
 
 	return true;
+}
+
+bool:HasRoundEnded()
+{
+	if(!roundReset)
+		return true;
+
+	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
+	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
+	
+	if (currentRoundTime > maxRoundTime + INACCURACY)
+		return true; // This round has already ended, don't trigger caps until next round starts
+
+	return false;
 }
 
 PushOnGhostCapture(client)
