@@ -141,17 +141,9 @@ public Action:CheckGhostPosition(Handle:timer)
 
 				roundReset = false; // Won't spam any more events unless value is set to true
 				
-				//PrintToChatAll("Captured the ghost! Capzone: %i", capzone);
 				PushOnGhostCapture(carrier);
-				
-				decl String:carrierSteamID[64], String:carrierTeam[18];	
-				new carrierUserID = GetClientUserId(carrier);
-				
-				GetClientAuthId(carrier, AuthId_Steam2, carrierSteamID, 64);
-				GetTeamName(carrierTeamID, carrierTeam, sizeof(carrierTeam));
 
-				LogToGame("Team \"%s\" triggered \"ghost_capture_team\"", carrierTeam);
-				LogToGame("\"%N<%d><%s><%s>\" triggered \"ghost_capture\"", carrier, carrierUserID, carrierSteamID, carrierTeam);
+				LogGhostCapture(carrier, carrierTeamID);
 
 				break; //No point in continuing loop
 			}
@@ -208,6 +200,18 @@ bool:HasRoundEnded()
 		return true; // This round has already ended, don't trigger caps until next round starts
 
 	return false;
+}
+
+LogGhostCapture(client, team)
+{
+	decl String:carrierSteamID[64], String:carrierTeam[18];	
+	new carrierUserID = GetClientUserId(client);
+	
+	GetClientAuthId(client, AuthId_Steam2, carrierSteamID, 64);
+	GetTeamName(team, carrierTeam, sizeof(carrierTeam));
+
+	LogToGame("Team \"%s\" triggered \"ghost_capture_team\"", carrierTeam);
+	LogToGame("\"%N<%d><%s><%s>\" triggered \"ghost_capture\"", client, carrierUserID, carrierSteamID, carrierTeam);
 }
 
 PushOnGhostCapture(client)
