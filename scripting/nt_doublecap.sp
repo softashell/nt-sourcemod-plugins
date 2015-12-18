@@ -8,7 +8,7 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL",
     description = "Removes ghost as soon as it's captured",
-    version = "0.1",
+    version = "0.2",
     url = ""
 };
 
@@ -32,11 +32,18 @@ RemoveGhost(client)
 {
 	PrintToServer("Removing current ghost %i", ghost);
 
-	// Switch to last weapon if player is still alive
+	// Switch to last weapon if player is still alive and has ghost active
 	if(IsValidClient(client) && IsPlayerAlive(client))
 	{
-		new weapon = GetEntPropEnt(client, Prop_Data, "m_hLastWeapon");
-		SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
+		new activeweapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+
+		if(activeweapon == ghost)
+		{
+			new lastweapon = GetEntPropEnt(client, Prop_Data, "m_hLastWeapon");
+
+			if(IsValidEdict(lastweapon))
+				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", lastweapon);
+		}
 	}
 
 	// Delete ghost
