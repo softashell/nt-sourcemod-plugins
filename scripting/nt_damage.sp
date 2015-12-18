@@ -173,13 +173,13 @@ RewardAssists(client, killer)
 		damage = g_DamageTaken[client][attacker];
 		hits = g_HitsTaken[client][attacker];
 
-		if((damage <= 0) && (hits <= 0))
+		if((damage <= 0) || (hits <= 0))
 			continue; //No damage or hits
-
-		g_PlayerAssist[attacker] += damage;
 
 		PrintToChat(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
 		PrintToConsole(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
+
+		g_PlayerAssist[attacker] += damage;
 
 		CheckAssists(attacker);
 	}
@@ -202,13 +202,18 @@ CheckAssists(client)
 		PrintToChat(client, "[NT°] You gained %i XP for assists", reward_points);
 		PrintToConsole(client, "[NT°] You gained %i XP for assists", reward_points);
 
-		// Log kill_assist event
-		new userID, String:steamID[64], String:team[18];
-		
-		userID = GetClientUserId(client);
-		GetClientAuthId(client, AuthId_Steam2, steamID, 64);
-		GetTeamName(GetClientTeam(client), team, sizeof(team));
-
-		LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
+		LogKillAssist(client);
 	}
+}
+
+LogKillAssist(client)
+{
+	// Log kill_assist event
+	new userID, String:steamID[64], String:team[18];
+	
+	userID = GetClientUserId(client);
+	GetClientAuthId(client, AuthId_Steam2, steamID, 64);
+	GetTeamName(GetClientTeam(client), team, sizeof(team));
+
+	LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
 }
