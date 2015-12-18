@@ -52,18 +52,17 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 {
 	new client;
 
+	
 	for(client = 1; client <= MaxClients; client++)
 	{
+		// Shows damage report now if player didn't die
 		if(IsValidClient(client) && GetClientTeam(client) > 1)
 		{
 			if(!g_SeenReport[client])
 				DamageReport(client);
 		}
-	}
 
-	// Reset everything on new round
-	for(client = 1; client <= MaxClients; client++)
-	{
+		// Resets everything
 		g_SeenReport[client] = false;
 		g_PlayerHealth[client] = 100;
 
