@@ -14,6 +14,7 @@ public Plugin:myinfo =
 
 new Handle:hDB, Handle:hRestartGame, Handle:hResetScoresTimer;
 new bool:bScoreLoaded[MAXPLAYERS+1], bool:bResetScores;
+new bool:g_bHasJoinedATeam[MAXPLAYERS+1];
 new Handle:nt_savescore_database;
 
 public OnPluginStart()
@@ -64,11 +65,16 @@ public Action:ResetScoresNextRound(Handle:timer)
 	hResetScoresTimer = INVALID_HANDLE;
 }
 
+public OnClientPutInServer(client)
+{
+	g_bHasJoinedATeam[client] = false;
+}
+
+
 public OnClientDisconnect(client)
 {
-	//if(!bScoreLoaded[client])
-	//	return; // Never tried to load score
-	//I know this is a failsafe, but disabling this is the only way to have all this working somehow -glub
+	if(!bScoreLoaded[client] && !g_bHasJoinedATeam[client])
+		return; // Never tried to load score
 
 	DB_insertScore(client);
 
@@ -95,6 +101,8 @@ public Action:cmd_JoinTeam(client, const String:command[], args)
 	// Score isn't loaded from DB yet
 	if(!bScoreLoaded[client])
 		DB_retrieveScore(client);
+	
+	g_bHasJoinedATeam[client] = true;
 }
 
 public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
