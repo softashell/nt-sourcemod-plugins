@@ -9,7 +9,7 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.6",
+    version = "0.6.1",
     url = ""
 };
 
@@ -227,4 +227,5 @@ LogKillAssist(client)
 AddPlayerXP(client, xp)
 {
 	SetPlayerXP(client, GetPlayerXP(client) + xp);
+	UpdatePlayerRank(client);
 }
