@@ -8,15 +8,18 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.2",
-    url = ""
+    version = "0.3",
+    url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 new Handle:hDB, Handle:hRestartGame, Handle:hResetScoresTimer;
 new bool:bScoreLoaded[MAXPLAYERS+1], bool:bResetScores;
+new Handle:nt_savescore_database;
 
 public OnPluginStart()
 {
+	nt_savescore_database = CreateConVar("nt_savescore_database", "nt_savescores", "Database filename for saving scores", FCVAR_PLUGIN);
+	
 	hRestartGame = FindConVar("neo_restart_this");
 
 	// Hook restart command
@@ -26,20 +29,18 @@ public OnPluginStart()
 	AddCommandListener(cmd_JoinTeam, "jointeam");
 
 	HookEvent("game_round_start", event_RoundStart);
-	
+
+	bResetScores = false;
+}
+
+public OnConfigsExecuted()
+{	
 	// Create new database if it doesn't exist
 	DB_init();
 
 	// Clear it if we're reloading plugin or just started it
 	DB_clear();
-
-	bResetScores = false;
-}
-
-public OnMapStart()
-{	
-	DB_clear();
-
+	
 	bResetScores = false;
 }
 
@@ -65,8 +66,9 @@ public Action:ResetScoresNextRound(Handle:timer)
 
 public OnClientDisconnect(client)
 {
-	if(!bScoreLoaded[client])
-		return; // Never tried to load score
+	//if(!bScoreLoaded[client])
+	//	return; // Never tried to load score
+	//I know this is a failsafe, but disabling this is the only way to have all this working somehow -glub
 
 	DB_insertScore(client);
 
@@ -85,9 +87,9 @@ public Action:cmd_JoinTeam(client, const String:command[], args)
 		return;
 
 	if(IsPlayerAlive(client))
-		return; // Alive player switching team, should never happen when you just conenct
+		return; // Alive player switching team, should never happen when you just connect
 
-	if(team_current == team_target)
+	if(team_current == team_target && team_target != 0 && team_current != 0)
 		return; // Trying to join same team
 
 	// Score isn't loaded from DB yet
@@ -108,8 +110,10 @@ public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 DB_init()
 {
 	new String:error[255];
-
-	hDB = SQLite_UseDatabase("nt_savescores", error, sizeof(error));
+	new String:buffer[50];
+	GetConVarString(nt_savescore_database, buffer, sizeof(buffer));
+	
+	hDB = SQLite_UseDatabase(buffer, error, sizeof(error));
 	
 	if (hDB == INVALID_HANDLE)
 		SetFailState("SQL error: %s", error);
