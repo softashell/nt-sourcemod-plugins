@@ -4,18 +4,16 @@
 #include <sdktools>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"0.5.1"
-
 public Plugin:myinfo =
 {
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = PLUGIN_VERSION,
+    version = "0.6",
     url = ""
 };
 
-new Handle:g_hRewardAssists, Handle:g_hAssistDamage, Handle:g_hAssistPoints;
+new Handle:g_hRewardAssists, Handle:g_hAssistDamage, Handle:g_hAssistPoints, Handle:g_hAssistMode;
 
 new bool:g_SeenReport[MAXPLAYERS+1];
 
@@ -30,16 +28,14 @@ new g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 
 public OnPluginStart()
 {
-	CreateConVar("sm_ntdamage_version", PLUGIN_VERSION, "NEOTOKYO° Damage counter", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
-
 	g_hRewardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
-	g_hAssistDamage = CreateConVar("sm_ntdamage_damage", "100", "Total damage required to trigger assist");
-	g_hAssistPoints = CreateConVar("sm_ntdamage_points", "2", "Points given for each assist");
+	g_hAssistMode 	= CreateConVar("sm_ntdamage_assistmode", "0", "Switches assist mode");
+	g_hAssistDamage = CreateConVar("sm_ntdamage_damage", "45", "Damage required to trigger assist");
+	g_hAssistPoints = CreateConVar("sm_ntdamage_points", "1", "Points given for each assist");
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
-
 }
 
 public OnClientPutInServer(client)
@@ -51,7 +47,6 @@ public OnClientPutInServer(client)
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client;
-
 	
 	for(client = 1; client <= MaxClients; client++)
 	{
@@ -110,10 +105,8 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 
 	DamageReport(victim);
 
-	g_SeenReport[victim] = true;
-
 	if(GetConVarInt(g_hRewardAssists) > 0)
-		RewardAssists(victim, attacker);
+		RewardAssists(victim, attacker, GetConVarInt(g_hAssistMode));
 }
 
 DamageReport(client)
@@ -152,11 +145,16 @@ DamageReport(client)
 	PrintToConsole(client, "Total damage dealt: %i in %i hits", totalDamageDealt, totalHitsDealt);
 	PrintToConsole(client, "Total damage received from players: %i in %i hits", totalDamageTaken, totalHitsTaken);
 	PrintToConsole(client, "------------------------------------------------");
+
+	g_SeenReport[client] = true;
 }
 
-RewardAssists(client, killer)
+RewardAssists(client, killer, mode)
 {
 	new damage, hits, attacker;
+
+	new target_damage = GetConVarInt(g_hAssistDamage);
+	new reward_points = GetConVarInt(g_hAssistPoints);
 
 	for(attacker = 1; attacker <= MaxClients; attacker++)
 	{
@@ -175,33 +173,42 @@ RewardAssists(client, killer)
 		if((damage <= 0) || (hits <= 0))
 			continue; //No damage or hits
 
-		PrintToChat(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
-		PrintToConsole(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
+		switch(mode)
+		{
+			case 0: // Gives out X points only when player assisted with X damage to dead player
+			{
+				if(damage < target_damage)
+					continue; // Didn't do enough damage to get anything
 
-		g_PlayerAssist[attacker] += damage;
+				AddPlayerXP(attacker, reward_points);
 
-		CheckAssists(attacker);
-	}
-}
+				PrintToChat(attacker, "[NT°] You gained %i XP for doing %i damage to %N", reward_points, damage, client);
+				PrintToConsole(attacker, "[NT°] You gained %i XP for doing %i damage to %N", reward_points, damage, client);
 
-CheckAssists(client)
-{
-	if(!IsValidClient(client))
-		return;
+				LogKillAssist(attacker);
+			}
+			case 1: // Sums all assisted damage and gives out X points after X damage done
+			{ 
+				PrintToChat(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
+				PrintToConsole(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
 
-	new target_damage = GetConVarInt(g_hAssistDamage);
-	new reward_points = GetConVarInt(g_hAssistPoints);
+				// Add to total assist buffer
+				g_PlayerAssist[attacker] += damage;
 
-	if(g_PlayerAssist[client] >= target_damage)
-	{
-		SetPlayerXP(client, GetPlayerXP(client) + reward_points);
+				// Check if points should be given to player
+				if(g_PlayerAssist[attacker] >= target_damage)
+				{
+					g_PlayerAssist[attacker] -= target_damage;
 
-		g_PlayerAssist[client] -= target_damage;
+					AddPlayerXP(attacker, reward_points);
 
-		PrintToChat(client, "[NT°] You gained %i XP for assists", reward_points);
-		PrintToConsole(client, "[NT°] You gained %i XP for assists", reward_points);
+					PrintToChat(attacker, "[NT°] You gained %i XP for assists", reward_points);
+					PrintToConsole(attacker, "[NT°] You gained %i XP for assists", reward_points);
 
-		LogKillAssist(client);
+					LogKillAssist(attacker);
+				}
+			}
+		}
 	}
 }
 
@@ -215,4 +222,9 @@ LogKillAssist(client)
 	GetTeamName(GetClientTeam(client), team, sizeof(team));
 
 	LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
+}
+
+AddPlayerXP(client, xp)
+{
+	SetPlayerXP(client, GetPlayerXP(client) + xp);
 }
