@@ -36,7 +36,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		g_bAimHeld[client] = false;
 	}
-
 	
 	if((buttons & IN_THERMOPTIC) == IN_THERMOPTIC)
 	{
