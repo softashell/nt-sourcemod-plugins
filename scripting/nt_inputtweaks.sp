@@ -11,8 +11,6 @@ public Plugin:myinfo =
 	url = ""
 }
 
-#define SPAM_TIME 0.25
-
 new bool:g_bAimHeld[MAXPLAYERS+1];
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
