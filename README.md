@@ -6,8 +6,11 @@ Shows detailed damage dealt/received in console on death/round end.
 
 Also adds optional assist awards since it keeps track of damage anyway
 - **sm_ntdamage_assists** 0 - Enable/Disable rewarding of assists
-- **sm_ntdamage_damage** 100 - Total damage required to trigger assist
-- **sm_ntdamage_points** 2 - Points given for each assist
+- **sm_ntdamage_damage** 45 - Damage required to trigger assist
+- **sm_ntdamage_points** 1 - Points given for each assist
+- **sm_ntdamage_assistmode** - Switches assist mode, default is 0
+	- 0 - Gives out points only when player did enough damage to dead player
+	- 1 - Sums all assisted damage and gives out points when enough damage has been assisted in total (**sm_ntdamage_damage** should be set above 100)
 
 nt_ghostcap
 ====================

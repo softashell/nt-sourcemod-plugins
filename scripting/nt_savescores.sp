@@ -19,7 +19,7 @@ new Handle:nt_savescore_database;
 
 public OnPluginStart()
 {
-	nt_savescore_database = CreateConVar("nt_savescore_database", "nt_savescores", "Database filename for saving scores", FCVAR_PLUGIN);
+	nt_savescore_database = CreateConVar("nt_savescore_database", "nt_savescores", "Database filename for saving scores", FCVAR_PLUGIN|FCVAR_PROTECTED);
 	
 	hRestartGame = FindConVar("neo_restart_this");
 
