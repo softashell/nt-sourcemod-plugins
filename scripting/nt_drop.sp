@@ -12,7 +12,7 @@ public Plugin:myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.2",
+	version = "0.3",
 	url = ""
 }
 
@@ -198,6 +198,9 @@ WeaponDropPost(client, weapon)
 
 	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
 		return;
+
+	// Convert index to entity reference
+	weapon = EntIndexToEntRef(weapon);
 
 	int ammotype = GetAmmoType(weapon);
 	int ammo = GetWeaponAmmo(client, ammotype);
