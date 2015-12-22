@@ -52,7 +52,6 @@ public event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-	// Comment out to test with bots
 	if(1 > client > MaxClients) 
 		return;
 	
@@ -75,7 +74,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		if(g_bTossHeld[client])
 		{
 			buttons &= ~IN_TOSS; // Weapon only gets dropped on release
-			return;
 		}
 		else 
 		{
