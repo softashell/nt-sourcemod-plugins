@@ -53,10 +53,7 @@ public event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-	if(1 > client > MaxClients) 
-		return;
-	
-	if(!IsClientInGame(client))
+	if(!IsValidClient(client))
 		return;
 
 	#if DEBUG > 0
