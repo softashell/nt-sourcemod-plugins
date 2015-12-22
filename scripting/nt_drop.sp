@@ -94,10 +94,6 @@ public OnWeaponPickup(int weapon, int other)
 {
 	new owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
 
-	decl String:classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
 	if(other != owner)
 		return; // Didn't pick up weapon
 
@@ -118,6 +114,10 @@ public OnWeaponPickup(int weapon, int other)
 	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
 
 	#if DEBUG > 0
+	decl String:classname[30];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return; // Can't get class name
+
 	PrintToChatAll("%s picked up by %N with %d ammo", classname, owner, ammo);
 	#endif
 }
