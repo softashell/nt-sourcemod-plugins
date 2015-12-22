@@ -3,10 +3,9 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <neotokyo>
 
 new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate;
-
-new gOffsetMyWeapons, gOffsetAmmo;
 
 new bool:bFreezeTime, bDuel;
 
@@ -30,7 +29,7 @@ public Plugin:myinfo =
     name = "TRIBESTOKYO°",
     author = "soft as HELL",
     description = "fun allowed",
-    version = "1.0",
+    version = "1.1",
     url = ""
 };
 
@@ -52,10 +51,6 @@ public OnPluginStart()
 
 	HookEvent("player_spawn", event_PlayerSpawn);
 	HookEvent("game_round_start", event_RoundStart);
-
-	// Get offsets
-	gOffsetMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons");
-	gOffsetAmmo = FindSendPropInfo("CBasePlayer", "m_iAmmo");
 
 	// Precache pain sounds just in case
 	for(new snd = 0; snd < sizeof(gPainSounds); snd++)
@@ -122,10 +117,10 @@ public Action:cmd_handler(client, const String:command[], args)
 	if(StrEqual(command, "setclass"))
 	{
 		// Allow only REKIN
-		if (arg != 1)
+		if (arg != CLASS_RECON)
 		{
 			// Force recon
-			SetPlayerClass(client, 1);
+			SetPlayerClass(client, CLASS_RECON);
 
 			PrintToChat(client, "You're only allowed to play RECON on this map!");
 
@@ -139,9 +134,9 @@ public Action:cmd_handler(client, const String:command[], args)
 	{
 		/* If plugin in enabled mid map players only see loadout menu when spawning
 			so we have to force recon here again if players isn't one already */
-		if(GetPlayerClass(client) != 1)
+		if(GetPlayerClass(client) != CLASS_RECON)
 		{
-			SetPlayerClass(client, 1);
+			SetPlayerClass(client, CLASS_RECON);
 			ClientCommand(client, "setclass 1");
 		}
 
@@ -160,6 +155,15 @@ public Action:cmd_handler(client, const String:command[], args)
 	return Plugin_Continue;
 }
 
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+{	
+	// Block camo
+	if((buttons & IN_THERMOPTIC) == IN_THERMOPTIC)
+	{
+		buttons &= ~IN_THERMOPTIC;
+	}
+}
+
 public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	if(GetConVarInt(hEnabled) < 1)
@@ -167,7 +171,7 @@ public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-	if (!IsClientInGame(client))
+	if (!IsValidClient(client))
 		return;
 
 	// Delay stripping of weapons because this is called before players get weapons
@@ -187,42 +191,20 @@ public Action:timer_GiveWeapons(Handle:timer, any:client)
 	if(GetConVarInt(hEnabled) < 1)
 		return;
 
-	if(!IsClientInGame(client))
+	if(!IsValidClient(client))
 		return;
 
-	if(!IsPlayerAlive(client))
-		return;
+	StripPlayerWeapons(client, true);
 
-	new String:classname[13];
-
-	// NT has only five weapon slots, loop trough them and remove all valid weapons
-	for(new weapon = 0; weapon <= 5; weapon++)
-	{
-		// Get entity id from offset
-		new wpn = GetEntDataEnt2(client, gOffsetMyWeapons + (weapon * 4));
-
-		if(!IsValidEntity(wpn))
-			continue;
-
-		if(!GetEdictClassname(wpn, classname, 13))
-			continue; // Skip if we for some reason can't get classname
-
-		if(StrEqual(classname, "weapon_knife"))
-			continue; // Skip if it's knife
-
-		RemovePlayerItem(client, wpn);
-		RemoveEdict(wpn);
-	}
-
-	SetWeaponAmmo(client, 11, 92); // shotgun ammo + 7 shells in magazine
-	SetWeaponAmmo(client, 5, 54);  // secondary ammo + 6 shells in magazine
+	SetWeaponAmmo(client, AMMO_SHOTGUN, 92); // shotgun ammo + 7 shells in magazine
+	SetWeaponAmmo(client, AMMO_SECONDARY, 54);  // secondary ammo + 6 shells in magazine
 
 	GivePlayerItem(client, "weapon_remotedet");
 	GivePlayerItem(client, "weapon_kyla");
 
 	new iWeapon = GivePlayerItem(client, "weapon_supa7");
 
-	if( iWeapon != -1)
+	if(iWeapon != -1)
 		AcceptEntityInput(iWeapon, "use", client, client);
 
 	// Print the disclaimer but doesn't seem any of the noobs even care what's going on
@@ -257,9 +239,9 @@ public OnGameFrame()
 			return; // skip this frame
 	}
 
-	new jinrai, nsf;
+	new jinrai, nsf, i;
 
-	for(new i = 1; i <= MaxClients; i++)
+	for(i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
 			continue;
@@ -277,7 +259,7 @@ public OnGameFrame()
 		if((gametime - flLastCheck) < 1.0)
 			continue;
 
-		if(GetClientTeam(i) == 2) // Jinrai
+		if(GetClientTeam(i) == TEAM_JINRAI) // Jinrai
 		{
 			jinrai++;
 			lastplayer_jinrai = i;
@@ -342,9 +324,6 @@ SetPlayerData(client)
 	// Set AUX to 100 for unlimited super jump
 	SetEntPropFloat(client, Prop_Send, "m_fSprintNRG", 100.0);
 
-	// Keep thermoptic camo at 0 charge because can't see shit as it is on vtol already
-	SetEntPropFloat(client, Prop_Send, "m_fThermopticNRG", 0.0);
-
 	new weapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 	if(weapon == -1)
 		return; // No weapon equipped
@@ -356,7 +335,6 @@ SetPlayerData(client)
 		SetEntProp(weapon, Prop_Send, "m_iClip1", 7);
 	else if(StrEqual(classname, "weapon_kyla"))
 		SetEntProp(weapon, Prop_Send, "m_iClip1", 6);
-
 }
 
 CheckPlayerSpeed(client)
@@ -402,33 +380,8 @@ ReduceHealth(client, damage, bool:effect=false)
 	SetEntProp(client, Prop_Send, "m_iHealth", health, 1);
 	SetEntProp(client, Prop_Data, "m_iHealth", health, 1);
 
-	if(!effect)
-		return;
-
-	EmitSoundToClient(client, gPainSounds[GetRandomInt(0, sizeof(gPainSounds)-1)]);
-
-	new Handle:hBf = StartMessageOne("Shake", client);
-	if(hBf!=INVALID_HANDLE)
+	if(effect)
 	{
-		BfWriteByte(hBf, 0x0000);
-		BfWriteFloat(hBf, 10.0);
-		BfWriteFloat(hBf, 0.5);
-		BfWriteFloat(hBf, 1.0);
-		EndMessage();
+		EmitSoundToClient(client, gPainSounds[GetRandomInt(0, sizeof(gPainSounds)-1)]);
 	}
-}
-
-stock SetPlayerClass(client, class)
-{
-	return SetEntProp(client, Prop_Send, "m_iClassType", class);
-}
-
-stock GetPlayerClass(client)
-{
-	return GetEntProp(client, Prop_Send, "m_iClassType");
-}
-
-stock SetWeaponAmmo(client, type, ammo)
-{
-    return SetEntData(client, gOffsetAmmo + (type * 4), ammo);
 }
