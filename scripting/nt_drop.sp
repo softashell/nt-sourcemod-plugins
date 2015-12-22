@@ -169,8 +169,8 @@ public Action:timer_DropWeapon(Handle timer, Handle pack)
 
 	if(IsPlayerAlive(client))
 	{
-		// It's possible to drop a weapon and pick up a int one before ammo has been removed
-		// So I'm trying to remove dropped ammo without touching int one
+		// It's possible to drop a weapon and pick up a new one before ammo has been removed
+		// So I'm trying to remove dropped ammo without touching new one
 		int current_ammo = GetWeaponAmmo(client, ammotype);
 		int new_ammo = current_ammo - ammo;
 
