@@ -4,16 +4,19 @@
 #include <sdktools>
 #include <neotokyo>
 
+#define DEBUG 0
+#define SF_NORESPAWN (1 << 30)
+
 public Plugin:myinfo = 
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.1",
+	version = "0.2",
 	url = ""
 }
 
-new String:weapon_blacklist[][] = {
+char weapon_blacklist[][] = {
 	"weapon_knife",
 	"weapon_remotedet",
 	"weapon_grenade",
@@ -21,17 +24,14 @@ new String:weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-#define DEBUG 0
-#define SF_NORESPAWN (1 << 30)
-
-new bool:g_bTossHeld[MAXPLAYERS+1];
+bool g_bTossHeld[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
 	HookEvent("player_death", event_PlayerDeath, EventHookMode_Pre);
 
 	// Hook equp if plugin is restarted
-	for(new client = 1; client <= MaxClients; client++)
+	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsValidClient(client))
 			SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
@@ -49,9 +49,9 @@ public Action:OnWeaponEquip(client, weapon)
 	return Plugin_Handled;
 }
 
-public event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
 	if(!IsValidClient(client))
 		return;
@@ -67,15 +67,15 @@ public event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
 	}
 
-	for(new slot; slot <= 5; slot++)
+	for(int slot; slot <= 5; slot++)
 	{
-		new weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
+		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
 
 		WeaponDropPost(client, weapon);
 	}
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float angles[3], &weapon)
 {	
 	if((buttons & IN_TOSS) == IN_TOSS)
 	{
@@ -85,7 +85,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		}
 		else 
 		{
-			new active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
 			WeaponDropPost(client, active_weapon);
 
@@ -98,9 +98,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 }
 
-public OnWeaponPickup(int weapon, int other)
+public OnWeaponPickup(weapon, other)
 {
-	new owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
+	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
 
 	if(other != owner)
 		return; // Didn't pick up weapon
@@ -111,9 +111,9 @@ public OnWeaponPickup(int weapon, int other)
 	if(!IsPlayerAlive(owner))
 		return;
 
-	new ammotype = GetAmmoType(weapon);
-	new current_ammo = GetWeaponAmmo(owner, ammotype);
-	new ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
+	int ammotype = GetAmmoType(weapon);
+	int current_ammo = GetWeaponAmmo(owner, ammotype);
+	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
 
 	// Remove secondary ammo
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", 0);
@@ -122,7 +122,7 @@ public OnWeaponPickup(int weapon, int other)
 	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
 
 	#if DEBUG > 0
-	decl String:classname[30];
+	char classname[30];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 		return; // Can't get class name
 
@@ -130,25 +130,25 @@ public OnWeaponPickup(int weapon, int other)
 	#endif
 }
 
-public Action:timer_DropWeapon(Handle:timer, Handle pack)
+public Action:timer_DropWeapon(Handle timer, Handle pack)
 {
 	ResetPack(pack);
 
-	new client = ReadPackCell(pack);
-	new weapon = ReadPackCell(pack);
-	new ammotype = ReadPackCell(pack);
-	new ammo = ReadPackCell(pack);
+	int client = ReadPackCell(pack);
+	int weapon = ReadPackCell(pack);
+	int ammotype = ReadPackCell(pack);
+	int ammo = ReadPackCell(pack);
 
 	if(!IsValidEdict(weapon))
 		return; // Are you trying to tick me again?
 
-	new owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
+	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
 
 	if(owner != -1)
 		return;
 
 	#if DEBUG > 0
-	decl String:classname[30];
+	char classname[30];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 		return; // Can't get class name
 
@@ -159,7 +159,7 @@ public Action:timer_DropWeapon(Handle:timer, Handle pack)
 	static spawnflags;
 
 	// Try to find datamap offset for m_spawnflags property
-	if (!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
+	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
 	{
 		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
 	}
@@ -169,10 +169,10 @@ public Action:timer_DropWeapon(Handle:timer, Handle pack)
 
 	if(IsPlayerAlive(client))
 	{
-		// It's possible to drop a weapon and pick up a new one before ammo has been removed
-		// So I'm trying to remove dropped ammo without touching new one
-		new current_ammo = GetWeaponAmmo(client, ammotype);
-		new new_ammo = current_ammo - ammo;
+		// It's possible to drop a weapon and pick up a int one before ammo has been removed
+		// So I'm trying to remove dropped ammo without touching int one
+		int current_ammo = GetWeaponAmmo(client, ammotype);
+		int new_ammo = current_ammo - ammo;
 
 		if(new_ammo < 0)
 			new_ammo = 0;
@@ -189,7 +189,7 @@ WeaponDropPost(client, weapon)
 	if(!IsValidEdict(weapon))
 		return;
 
-	decl String:classname[30];
+	char classname[30];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 		return; // Can't get class name
 
@@ -199,8 +199,8 @@ WeaponDropPost(client, weapon)
 	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
 		return;
 
-	new ammotype = GetAmmoType(weapon);
-	new ammo = GetWeaponAmmo(client, ammotype);
+	int ammotype = GetAmmoType(weapon);
+	int ammo = GetWeaponAmmo(client, ammotype);
 
 	#if DEBUG > 0
 	PrintToServer("%N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
@@ -219,11 +219,9 @@ WeaponDropPost(client, weapon)
 	pack.WriteCell(ammo);
 }
 
-bool IsWeaponDroppable(String:classname[])
+bool IsWeaponDroppable(const char[] classname)
 {
-	new i;
-
-	for(i = 0; i < sizeof(weapon_blacklist); i++)
+	for(int i; i < sizeof(weapon_blacklist); i++)
 	{
 		if(StrEqual(classname, weapon_blacklist[i]))
 		{
