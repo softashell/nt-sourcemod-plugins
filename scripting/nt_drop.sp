@@ -22,6 +22,7 @@ new String:weapon_blacklist[][] = {
 };
 
 #define DEBUG 0
+#define SF_NORESPAWN (1 << 30)
 
 new bool:g_bTossHeld[MAXPLAYERS+1];
 
@@ -146,6 +147,18 @@ public Action:timer_DropWeapon(Handle:timer, Handle pack)
 
 	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
 	#endif
+
+	// Prepare spawnflags datamap offset
+	static spawnflags;
+
+	// Try to find datamap offset for m_spawnflags property
+	if (!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
+	{
+		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
+	}
+
+	// Remove SF_NORESPAWN flag from m_spawnflags datamap
+	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
 
 	if(IsPlayerAlive(client))
 	{
