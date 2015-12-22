@@ -60,12 +60,22 @@ public event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		return;
 
 	#if DEBUG > 0
-	PrintToServer("%N (%d) dropping weapon on death", client, client);
+	PrintToServer("%N (%d) dropping weapons on death", client, client);
 	#endif
 
-	new active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	static hMyWeapons;
 
-	WeaponDropPost(client, active_weapon);
+	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
+	{
+		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
+	}
+
+	for(new slot; slot <= 5; slot++)
+	{
+		new weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
+
+		WeaponDropPost(client, weapon);
+	}
 }
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
