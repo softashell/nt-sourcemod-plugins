@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.5.3"
+#define PLUGIN_VERSION	"1.5.4"
 
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
@@ -56,7 +56,7 @@ public OnEntityCreated(entity, const String:classname[])
 {
 	if (StrEqual(classname, "weapon_ghost"))
 	{
-		ghost = entity;
+		ghost = EntIndexToEntRef(entity);
 
 		PushOnGhostSpawn(ghost);
 	}
