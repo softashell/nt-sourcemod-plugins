@@ -8,7 +8,7 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL",
     description = "Removes ghost as soon as it's captured",
-    version = "0.3",
+    version = "0.3.1",
     url = ""
 };
 
@@ -36,8 +36,9 @@ RemoveGhost(client)
 	if(IsValidClient(client) && IsPlayerAlive(client))
 	{
 		new activeweapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+		new ghost_index = EntRefToEntIndex(ghost);
 
-		if(activeweapon == ghost)
+		if(activeweapon == ghost_index)
 		{
 			new lastweapon = GetEntPropEnt(client, Prop_Data, "m_hLastWeapon");
 
