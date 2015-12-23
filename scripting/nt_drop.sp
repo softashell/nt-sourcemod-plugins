@@ -28,7 +28,7 @@ bool g_bTossHeld[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
-	HookEvent("player_death", event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 
 	// Hook equp if plugin is restarted
 	for(int client = 1; client <= MaxClients; client++)
@@ -43,90 +43,7 @@ public OnClientPutInServer(client)
 	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
 }
 
-public Action OnWeaponEquip(client, weapon) 
-{ 
-	// Blocks ammo pickup from dropped weapons
-	return Plugin_Handled;
-}
-
-public Action OnPlayerRunCmd(int client, int &buttons)
-{	
-	if(buttons & IN_TOSS)
-	{
-		if(g_bTossHeld[client])
-		{
-			buttons &= ~IN_TOSS; // Weapon only gets dropped on release
-		}
-		else 
-		{
-			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-
-			HandleWeaponDrop(client, active_weapon);
-
-			g_bTossHeld[client] = true;
-		}
-	}
-	else 
-	{
-		g_bTossHeld[client] = false;
-	}
-}
-
-public Action timer_DropWeaponPost(Handle timer, Handle pack)
-{
-	ResetPack(pack);
-
-	int client = ReadPackCell(pack);
-	int weapon = ReadPackCell(pack);
-	int ammotype = ReadPackCell(pack);
-	int ammo = ReadPackCell(pack);
-
-	if(!IsValidEdict(weapon))
-		return; // Are you trying to tick me again?
-
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-
-	if(owner != -1)
-		return;
-
-	#if DEBUG > 0
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
-	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
-	#endif
-
-	// Prepare spawnflags datamap offset
-	static spawnflags;
-
-	// Try to find datamap offset for m_spawnflags property
-	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
-	{
-		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
-	}
-
-	// Remove SF_NORESPAWN flag from m_spawnflags datamap
-	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
-
-	if(IsPlayerAlive(client))
-	{
-		// It's possible to drop a weapon and pick up a new one before ammo has been removed
-		// So I'm trying to remove dropped ammo without touching new one
-		int current_ammo = GetWeaponAmmo(client, ammotype);
-		int new_ammo = current_ammo - ammo;
-
-		if(new_ammo < 0)
-			new_ammo = 0;
-
-		// Remove ammo from original owener
-		SetWeaponAmmo(client, ammotype, new_ammo);
-	}
-
-	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
-}
-
-public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+public OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
@@ -148,7 +65,7 @@ public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	{
 		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
 
-		HandleWeaponDrop(client, weapon);
+		DropWeapon(client, weapon);
 	}
 }
 
@@ -184,7 +101,36 @@ public OnWeaponPickup(int weapon, int other)
 	#endif
 }
 
-HandleWeaponDrop(int client, int weapon)
+public Action OnWeaponEquip(client, weapon) 
+{ 
+	// Blocks ammo pickup from dropped weapons
+	return Plugin_Handled;
+}
+
+public Action OnPlayerRunCmd(int client, int &buttons)
+{	
+	if(buttons & IN_TOSS)
+	{
+		if(g_bTossHeld[client])
+		{
+			buttons &= ~IN_TOSS; // Weapon only gets dropped on release
+		}
+		else 
+		{
+			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+
+			DropWeapon(client, active_weapon);
+
+			g_bTossHeld[client] = true;
+		}
+	}
+	else 
+	{
+		g_bTossHeld[client] = false;
+	}
+}
+
+void DropWeapon(int client, int weapon)
 {
 	if(!IsValidEdict(weapon))
 		return;
@@ -213,13 +159,72 @@ HandleWeaponDrop(int client, int weapon)
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
 
 	DataPack pack;
-	CreateDataTimer(0.1, timer_DropWeaponPost, pack);
+	CreateDataTimer(0.1, DropWeaponPost, pack);
 
 	// Pass data to timer
 	pack.WriteCell(client);
 	pack.WriteCell(weapon);
 	pack.WriteCell(ammotype);
 	pack.WriteCell(ammo);
+}
+
+public Action DropWeaponPost(Handle timer, Handle pack)
+{
+	ResetPack(pack);
+
+	int client = ReadPackCell(pack);
+	int weapon = ReadPackCell(pack);
+	int ammotype = ReadPackCell(pack);
+	int ammo = ReadPackCell(pack);
+
+	if(!IsValidEdict(weapon))
+		return; // Are you trying to tick me again?
+
+	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
+
+	if(owner != -1)
+		return;
+
+	#if DEBUG > 0
+	char classname[30];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return; // Can't get class name
+
+	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
+	#endif
+
+	ChangeSpawnFlags(weapon);
+
+	if(IsPlayerAlive(client))
+	{
+		// It's possible to drop a weapon and pick up a new one before ammo has been removed
+		// So I'm trying to remove dropped ammo without touching new one
+		int current_ammo = GetWeaponAmmo(client, ammotype);
+		int new_ammo = current_ammo - ammo;
+
+		if(new_ammo < 0)
+			new_ammo = 0;
+
+		// Remove ammo from original owener
+		SetWeaponAmmo(client, ammotype, new_ammo);
+	}
+
+	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+}
+
+void ChangeSpawnFlags(int weapon)
+{
+	// Prepare spawnflags datamap offset
+	static spawnflags;
+
+	// Try to find datamap offset for m_spawnflags property
+	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
+	{
+		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
+	}
+
+	// Remove SF_NORESPAWN flag from m_spawnflags datamap
+	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
 }
 
 bool IsWeaponDroppable(const char[] classname)
