@@ -12,7 +12,7 @@ public Plugin:myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.3",
+	version = "0.4",
 	url = ""
 }
 
@@ -43,41 +43,15 @@ public OnClientPutInServer(client)
 	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
 }
 
-public Action:OnWeaponEquip(client, weapon) 
+public Action OnWeaponEquip(client, weapon) 
 { 
 	// Blocks ammo pickup from dropped weapons
 	return Plugin_Handled;
 }
 
-public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-
-	if(!IsValidClient(client))
-		return;
-
-	#if DEBUG > 0
-	PrintToServer("%N (%d) dropping weapons on death", client, client);
-	#endif
-
-	static hMyWeapons;
-
-	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
-	{
-		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
-	}
-
-	for(int slot; slot <= 5; slot++)
-	{
-		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
-
-		WeaponDropPost(client, weapon);
-	}
-}
-
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float angles[3], &weapon)
+public Action OnPlayerRunCmd(int client, int &buttons)
 {	
-	if((buttons & IN_TOSS) == IN_TOSS)
+	if(buttons & IN_TOSS)
 	{
 		if(g_bTossHeld[client])
 		{
@@ -87,7 +61,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 		{
 			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
-			WeaponDropPost(client, active_weapon);
+			HandleWeaponDrop(client, active_weapon);
 
 			g_bTossHeld[client] = true;
 		}
@@ -98,39 +72,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 	}
 }
 
-public OnWeaponPickup(weapon, other)
-{
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-
-	if(other != owner)
-		return; // Didn't pick up weapon
-
-	// Remove current hook
-	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
-
-	if(!IsPlayerAlive(owner))
-		return;
-
-	int ammotype = GetAmmoType(weapon);
-	int current_ammo = GetWeaponAmmo(owner, ammotype);
-	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
-
-	// Remove secondary ammo
-	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", 0);
-
-	// Set the weapons secondary ammo as primary ammo
-	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
-
-	#if DEBUG > 0
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
-	PrintToChatAll("%s picked up by %N with %d ammo", classname, owner, ammo);
-	#endif
-}
-
-public Action:timer_DropWeapon(Handle timer, Handle pack)
+public Action timer_DropWeaponPost(Handle timer, Handle pack)
 {
 	ResetPack(pack);
 
@@ -184,7 +126,65 @@ public Action:timer_DropWeapon(Handle timer, Handle pack)
 	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
 }
 
-WeaponDropPost(client, weapon)
+public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+
+	if(!IsValidClient(client))
+		return;
+
+	#if DEBUG > 0
+	PrintToServer("%N (%d) dropping weapons on death", client, client);
+	#endif
+
+	static hMyWeapons;
+
+	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
+	{
+		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
+	}
+
+	for(int slot; slot <= 5; slot++)
+	{
+		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
+
+		HandleWeaponDrop(client, weapon);
+	}
+}
+
+public OnWeaponPickup(int weapon, int other)
+{
+	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
+
+	if(other != owner)
+		return; // Didn't pick up weapon
+
+	// Remove current hook
+	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+
+	if(!IsPlayerAlive(owner))
+		return;
+
+	int ammotype = GetAmmoType(weapon);
+	int current_ammo = GetWeaponAmmo(owner, ammotype);
+	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
+
+	// Remove secondary ammo
+	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", 0);
+
+	// Set the weapons secondary ammo as primary ammo
+	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
+
+	#if DEBUG > 0
+	char classname[30];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return; // Can't get class name
+
+	PrintToChatAll("%s picked up by %N with %d ammo", classname, owner, ammo);
+	#endif
+}
+
+HandleWeaponDrop(int client, int weapon)
 {
 	if(!IsValidEdict(weapon))
 		return;
@@ -213,7 +213,7 @@ WeaponDropPost(client, weapon)
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
 
 	DataPack pack;
-	CreateDataTimer(0.1, timer_DropWeapon, pack);
+	CreateDataTimer(0.1, timer_DropWeaponPost, pack);
 
 	// Pass data to timer
 	pack.WriteCell(client);

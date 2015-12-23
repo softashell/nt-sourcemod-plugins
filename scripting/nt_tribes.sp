@@ -29,7 +29,7 @@ public Plugin:myinfo =
     name = "TRIBESTOKYO°",
     author = "soft as HELL",
     description = "fun allowed",
-    version = "1.1",
+    version = "1.2",
     url = ""
 };
 
@@ -155,7 +155,7 @@ public Action:cmd_handler(client, const String:command[], args)
 	return Plugin_Continue;
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+public Action:OnPlayerRunCmd(client, &buttons)
 {	
 	if(GetConVarInt(hEnabled) < 1)
 		return Plugin_Continue;
@@ -165,6 +165,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		buttons &= ~IN_THERMOPTIC;
 	}
+	
 	return Plugin_Continue;
 }
 
