@@ -157,11 +157,15 @@ public Action:cmd_handler(client, const String:command[], args)
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {	
+	if(GetConVarInt(hEnabled) < 1)
+		return Plugin_Continue;
+	
 	// Block camo
 	if((buttons & IN_THERMOPTIC) == IN_THERMOPTIC)
 	{
 		buttons &= ~IN_THERMOPTIC;
 	}
+	return Plugin_Continue;
 }
 
 public event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
