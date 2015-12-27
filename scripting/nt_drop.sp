@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.5.1",
+	version = "0.5.2",
 	url = ""
 }
 
@@ -166,49 +166,54 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 			return; // Can't get class name
 
-		if(StrEqual(classname, "weapon_ghost"))
-			return; // Let the game deal with it
-
 		int slot = GetWeaponSlot(weapon);
 
-		if((slot == SLOT_MELEE) || (slot == SLOT_GRENADE))
-			return; // Not a weapon
-
-		if(GetGameTime() - g_fLastWeaponUse[client] < 0.5)
-			return; // Spamming use
-
-		int fEffects = GetEntProp(weapon, Prop_Data, "m_fEffects");
-		if(fEffects & EF_NODRAW)
-			return; // Not drawn to clients, probably weapon respawn point
-
-		//PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
-
-		int currentweapon = GetWeaponFromSlot(client, slot);
-
-		if((currentweapon != -1) && IsValidEdict(currentweapon))
+		if((slot == SLOT_PRIMARY) || (slot == SLOT_SECONDARY))
 		{
-			// Set active weapon
-			SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
+			if(GetGameTime() - g_fLastWeaponUse[client] < 0.5)
+				return; // Spamming use
 
-			// Press toss button once
-			buttons |= IN_TOSS;
+			if(StrEqual(classname, "weapon_ghost"))
+			{
+				g_fLastWeaponUse[client] = GetGameTime();
+				return;
+			}
 
-			// Deal with dropped weapon as usual
-			DropWeapon(client, currentweapon);
+			int fEffects = GetEntProp(weapon, Prop_Data, "m_fEffects");
+			if(fEffects & EF_NODRAW)
+				return; // Not drawn to clients, probably weapon respawn point
 
-			// Set swap time to block weapon pickup from touch
-			g_fLastWeaponSwap[client] = GetGameTime();
+			#if DEBUG > 0
+			PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
+			#endif
+
+			int currentweapon = GetWeaponFromSlot(client, slot);
+
+			if((currentweapon != -1) && IsValidEdict(currentweapon))
+			{
+				// Set active weapon
+				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
+
+				// Press toss button once
+				buttons |= IN_TOSS;
+
+				// Deal with dropped weapon as usual
+				DropWeapon(client, currentweapon);
+
+				// Set swap time to block weapon pickup from touch
+				g_fLastWeaponSwap[client] = GetGameTime();
+			}
+
+			DataPack pack;
+			CreateDataTimer(0.1, TakeWeapon, pack);
+
+			// Pass data to timer
+			pack.WriteCell(client);
+			pack.WriteCell(weapon);
+			pack.WriteCell(slot);
+
+			g_fLastWeaponUse[client] = GetGameTime();
 		}
-
-		DataPack pack;
-		CreateDataTimer(0.1, TakeWeapon, pack);
-
-		// Pass data to timer
-		pack.WriteCell(client);
-		pack.WriteCell(weapon);
-		pack.WriteCell(slot);
-
-		g_fLastWeaponUse[client] = GetGameTime();
 	}
 }
 
