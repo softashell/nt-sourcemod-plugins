@@ -8,13 +8,14 @@
 
 #define DEBUG 0
 #define SF_NORESPAWN (1 << 30)
+#define EF_NODRAW 32
 
 public Plugin myinfo = 
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.5",
+	version = "0.5.1",
 	url = ""
 }
 
@@ -160,8 +161,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		if(StrEqual(classname, "weapon_ghost"))
 			return; // Let the game deal with it
 
-		// TODO: Deal with ghost weapons created by respawn flag
-
 		int slot = GetWeaponSlot(weapon);
 
 		if((slot == SLOT_MELEE) || (slot == SLOT_GRENADE))
@@ -169,6 +168,10 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 		if(GetGameTime() - g_fLastWeaponUse[client] < 0.5)
 			return; // Spamming use
+
+		int fEffects = GetEntProp(weapon, Prop_Data, "m_fEffects");
+		if(fEffects & EF_NODRAW)
+			return; // Not drawn to clients, probably weapon respawn point
 
 		//PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
 
