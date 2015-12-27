@@ -4,10 +4,12 @@
 #include <sdktools>
 #include <neotokyo>
 
+#pragma newdecls required
+
 #define DEBUG 0
 #define SF_NORESPAWN (1 << 30)
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
@@ -26,7 +28,11 @@ char weapon_blacklist[][] = {
 
 bool g_bTossHeld[MAXPLAYERS+1];
 
-public OnPluginStart()
+#if DEBUG > 0
+float g_fLastWeaponUse[MAXPLAYERS+1];
+#endif
+
+public void OnPluginStart()
 {
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 
@@ -38,12 +44,12 @@ public OnPluginStart()
 	}
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
 }
 
-public OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
@@ -54,7 +60,7 @@ public OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	PrintToServer("%N (%d) dropping weapons on death", client, client);
 	#endif
 
-	static hMyWeapons;
+	static int hMyWeapons;
 
 	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
 	{
@@ -69,18 +75,18 @@ public OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	}
 }
 
-public OnWeaponPickup(int weapon, int other)
+public Action OnWeaponPickup(int weapon, int other)
 {
 	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
 
 	if(other != owner)
 		return; // Didn't pick up weapon
 
-	// Remove current hook
-	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
-
 	if(!IsPlayerAlive(owner))
 		return;
+
+	// Remove current hook
+	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
 
 	int ammotype = GetAmmoType(weapon);
 	int current_ammo = GetWeaponAmmo(owner, ammotype);
@@ -101,7 +107,7 @@ public OnWeaponPickup(int weapon, int other)
 	#endif
 }
 
-public Action OnWeaponEquip(client, weapon) 
+public Action OnWeaponEquip(int client, int weapon) 
 { 
 	// Blocks ammo pickup from dropped weapons
 	return Plugin_Handled;
@@ -128,6 +134,89 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 	{
 		g_bTossHeld[client] = false;
 	}
+	#if DEBUG > 0
+	// Does player is pressing +USE button and cooldown for dropped weapons is expired?
+	if(buttons & IN_USE)
+	{
+		// Get the entity a client is aiming at
+		int weapon = GetClientAimTarget(client, false);
+
+		// If we found an entity - make sure its valid
+		if(!IsValidEdict(weapon))
+			return;
+
+		// Retrieve the client's eye position and entity origin vector to compare distance
+		float vec1[3], vec2[3], distance;
+		GetClientEyePosition(client, vec1);
+		GetEntPropVector(weapon, Prop_Send, "m_vecOrigin", vec2);
+		distance = GetVectorDistance(vec1, vec2);
+
+		if(distance > 108.0) // Around the same distance as ghost pickup
+			return; // Too far away
+
+		char classname[30];
+		if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+			return; // Can't get class name
+
+		if(StrEqual(classname, "weapon_ghost"))
+			return; // Let the game deal with it
+
+		// TODO: Deal with ghost weapons created by respawn flag
+
+		int slot = GetWeaponSlot(weapon);
+
+		if((slot == SLOT_MELEE) || (slot == SLOT_GRENADE))
+			return; // Not a weapon
+
+		if(GetGameTime() - g_fLastWeaponUse[client] < 0.5)
+			return; // Spamming use
+
+		//PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
+
+		int currentweapon = GetWeaponFromSlot(client, slot);
+
+		if((currentweapon != -1) && IsValidEdict(currentweapon))
+		{
+			// Set active weapon
+			SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
+
+			// Press toss button once
+			buttons |= IN_TOSS;
+
+			// Deal with dropped weapon as usual
+			DropWeapon(client, currentweapon);
+		}
+
+		DataPack pack;
+		CreateDataTimer(0.1, TakeWeapon, pack);
+
+		// Pass data to timer
+		pack.WriteCell(client);
+		pack.WriteCell(weapon);
+		pack.WriteCell(slot);
+
+		g_fLastWeaponUse[client] = GetGameTime();
+
+	}
+	#endif
+}
+
+public Action TakeWeapon(Handle timer, Handle pack)
+{
+	ResetPack(pack);
+
+	int client = ReadPackCell(pack);
+	int weapon = ReadPackCell(pack);
+	int slot   = ReadPackCell(pack);
+
+	// Pick up weapon
+	AcceptEntityInput(weapon, "use", client, client);
+
+	// Sometimes gets called twice if you stand close enough, but doesn't seem to cause any problems
+	OnWeaponPickup(weapon, client);
+
+	// Switch to target slot
+	ClientCommand(client, "slot%d", slot+1);
 }
 
 void DropWeapon(int client, int weapon)
@@ -215,7 +304,7 @@ public Action DropWeaponPost(Handle timer, Handle pack)
 void ChangeSpawnFlags(int weapon)
 {
 	// Prepare spawnflags datamap offset
-	static spawnflags;
+	static int spawnflags;
 
 	// Try to find datamap offset for m_spawnflags property
 	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
