@@ -1,9 +1,8 @@
-#pragma semicolon 1
-
 #include <sdkhooks>
 #include <sdktools>
 #include <neotokyo>
 
+#pragma semicolon 1
 #pragma newdecls required
 
 #define DEBUG 0
@@ -28,10 +27,7 @@ char weapon_blacklist[][] = {
 };
 
 bool g_bTossHeld[MAXPLAYERS+1];
-
-#if DEBUG > 0
-float g_fLastWeaponUse[MAXPLAYERS+1];
-#endif
+float g_fLastWeaponUse[MAXPLAYERS+1], g_fLastWeaponSwap[MAXPLAYERS+1];
 
 public void OnPluginStart()
 {
@@ -76,19 +72,32 @@ public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	}
 }
 
+public Action OnWeaponTouch(int weapon, int other)
+{
+	if(!IsValidClient(other) || !IsPlayerAlive(other))
+		return Plugin_Continue;
+
+	if(GetGameTime() - g_fLastWeaponSwap[other] > 0.5)
+		return Plugin_Continue;
+	
+	// Currently swapping weapons with +use, block touch
+	return Plugin_Handled;
+}
+
 public Action OnWeaponPickup(int weapon, int other)
 {
 	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-
+	
 	if(other != owner)
 		return; // Didn't pick up weapon
 
 	if(!IsPlayerAlive(owner))
 		return;
 
-	// Remove current hook
+	// Remove current hooks
+	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
-
+	
 	int ammotype = GetAmmoType(weapon);
 	int current_ammo = GetWeaponAmmo(owner, ammotype);
 	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
@@ -135,7 +144,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 	{
 		g_bTossHeld[client] = false;
 	}
-	#if DEBUG > 0
 	if(buttons & IN_USE)
 	{
 		// Get the entity a client is aiming at
@@ -187,6 +195,9 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 			// Deal with dropped weapon as usual
 			DropWeapon(client, currentweapon);
+
+			// Set swap time to block weapon pickup from touch
+			g_fLastWeaponSwap[client] = GetGameTime();
 		}
 
 		DataPack pack;
@@ -198,9 +209,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		pack.WriteCell(slot);
 
 		g_fLastWeaponUse[client] = GetGameTime();
-
 	}
-	#endif
 }
 
 void DropWeapon(int client, int weapon)
@@ -282,6 +291,7 @@ public Action DropWeaponPost(Handle timer, Handle pack)
 		SetWeaponAmmo(client, ammotype, new_ammo);
 	}
 
+	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
 }
 
