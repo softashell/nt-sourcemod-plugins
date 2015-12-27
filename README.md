@@ -20,6 +20,17 @@ nt_doublecap (**Requires nt_ghostcap to work**)
 ====================
 Removes ghost when it's captured to prevent double capping
 
+nt_drop
+====================
+- Keeps weapons on ground all round.
+- Drops weapons with all spare ammo.
+- Disables ammo pick up from dropped weapons.
+- Enables weapon pick up and switch with +use
+
+nt_autojump
+====================
+Enables quake like bunnyhopping
+
 nt_noobname
 ====================
 Changes the name of any **NeotokyoNoob** connecting to random podbot name
