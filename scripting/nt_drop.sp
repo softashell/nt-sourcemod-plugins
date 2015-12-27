@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.4",
+	version = "0.5",
 	url = ""
 }
 
@@ -135,7 +135,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		g_bTossHeld[client] = false;
 	}
 	#if DEBUG > 0
-	// Does player is pressing +USE button and cooldown for dropped weapons is expired?
 	if(buttons & IN_USE)
 	{
 		// Get the entity a client is aiming at
@@ -199,24 +198,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 	}
 	#endif
-}
-
-public Action TakeWeapon(Handle timer, Handle pack)
-{
-	ResetPack(pack);
-
-	int client = ReadPackCell(pack);
-	int weapon = ReadPackCell(pack);
-	int slot   = ReadPackCell(pack);
-
-	// Pick up weapon
-	AcceptEntityInput(weapon, "use", client, client);
-
-	// Sometimes gets called twice if you stand close enough, but doesn't seem to cause any problems
-	OnWeaponPickup(weapon, client);
-
-	// Switch to target slot
-	ClientCommand(client, "slot%d", slot+1);
 }
 
 void DropWeapon(int client, int weapon)
@@ -299,6 +280,24 @@ public Action DropWeaponPost(Handle timer, Handle pack)
 	}
 
 	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+}
+
+public Action TakeWeapon(Handle timer, Handle pack)
+{
+	ResetPack(pack);
+
+	int client = ReadPackCell(pack);
+	int weapon = ReadPackCell(pack);
+	int slot   = ReadPackCell(pack);
+
+	// Pick up weapon
+	AcceptEntityInput(weapon, "use", client, client);
+
+	// Sometimes gets called twice if you stand close enough, but doesn't seem to cause any problems
+	OnWeaponPickup(weapon, client);
+
+	// Switch to target slot
+	ClientCommand(client, "slot%d", slot+1);
 }
 
 void ChangeSpawnFlags(int weapon)
