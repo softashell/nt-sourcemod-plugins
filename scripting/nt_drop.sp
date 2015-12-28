@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.5.2",
+	version = "0.6.0",
 	url = ""
 }
 
@@ -177,7 +177,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		GetEntPropVector(weapon, Prop_Send, "m_vecOrigin", vec2);
 		distance = GetVectorDistance(vec1, vec2);
 
-		if(distance > 108.0) // Around the same distance as ghost pickup
+		if(distance >= 100.0) // Around the same distance as ghost pickup
 			return; // Too far away
 
 		char classname[30];
@@ -188,14 +188,8 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 		if((slot == SLOT_PRIMARY) || (slot == SLOT_SECONDARY))
 		{
-			if(GetGameTime() - g_fLastWeaponUse[client] < 0.5)
+			if(GetGameTime() - g_fLastWeaponUse[client] < 1.0)
 				return; // Spamming use
-
-			if(StrEqual(classname, "weapon_ghost"))
-			{
-				g_fLastWeaponUse[client] = GetGameTime();
-				return;
-			}
 
 			int fEffects = GetEntProp(weapon, Prop_Data, "m_fEffects");
 			if(fEffects & EF_NODRAW)
@@ -204,6 +198,16 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 			#if DEBUG > 0
 			PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
 			#endif
+
+			if(StrEqual(classname, "weapon_ghost"))
+			{
+				g_fLastWeaponUse[client] = GetGameTime();
+
+				// Release use so the ghost gets picked up
+				buttons &= ~IN_USE;
+
+				return;
+			}
 
 			int currentweapon = GetWeaponFromSlot(client, slot);
 
