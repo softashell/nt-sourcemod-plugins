@@ -26,24 +26,26 @@ char weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-bool g_bTossHeld[MAXPLAYERS+1];
 float g_fLastWeaponUse[MAXPLAYERS+1], g_fLastWeaponSwap[MAXPLAYERS+1];
 
 public void OnPluginStart()
 {
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 
-	// Hook equp if plugin is restarted
+	// Hook again if plugin is restarted
 	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsValidClient(client))
-			SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
+		{
+			OnClientPutInServer(client);
+		}
 	}
 }
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
+	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip);
+	SDKHook(client, SDKHook_WeaponDrop, OnWeaponDrop);
 }
 
 public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
@@ -56,20 +58,6 @@ public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	#if DEBUG > 0
 	PrintToServer("%N (%d) dropping weapons on death", client, client);
 	#endif
-
-	static int hMyWeapons;
-
-	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
-	{
-		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
-	}
-
-	for(int slot; slot <= 5; slot++)
-	{
-		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
-
-		DropWeapon(client, weapon);
-	}
 }
 
 public Action OnWeaponTouch(int weapon, int other)
@@ -123,27 +111,57 @@ public Action OnWeaponEquip(int client, int weapon)
 	return Plugin_Handled;
 }
 
+public Action OnWeaponDrop(int client, int weapon)
+{
+	if(!IsValidEdict(weapon))
+		return;
+
+	char classname[32];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return; // Can't get class name
+
+	if(!IsWeaponDroppable(classname))
+		return;
+
+	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
+		return;
+
+	// Convert index to entity reference
+	weapon = EntIndexToEntRef(weapon);
+
+	int ammotype = GetAmmoType(weapon);
+	int ammo = GetWeaponAmmo(client, ammotype);
+
+	#if DEBUG > 0
+	PrintToServer("%N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
+	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
+	#endif
+
+	// Store ammo as secondary on weapon since it isn't used for anything
+	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
+
+	ChangeSpawnFlags(weapon);
+
+	if(IsPlayerAlive(client))
+	{
+		// It's possible to drop a weapon and pick up a new one before ammo has been removed
+		// So I'm trying to remove dropped ammo without touching new one
+		int current_ammo = GetWeaponAmmo(client, ammotype);
+		int new_ammo = current_ammo - ammo;
+
+		if(new_ammo < 0)
+			new_ammo = 0;
+
+		// Remove ammo from original owener
+		SetWeaponAmmo(client, ammotype, new_ammo);
+	}
+
+	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
+	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+}
+
 public Action OnPlayerRunCmd(int client, int &buttons)
 {	
-	if(buttons & IN_TOSS)
-	{
-		if(g_bTossHeld[client])
-		{
-			buttons &= ~IN_TOSS; // Weapon only gets dropped on release
-		}
-		else 
-		{
-			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-
-			DropWeapon(client, active_weapon);
-
-			g_bTossHeld[client] = true;
-		}
-	}
-	else 
-	{
-		g_bTossHeld[client] = false;
-	}
 	if(buttons & IN_USE)
 	{
 		// Get the entity a client is aiming at
@@ -197,9 +215,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 				// Press toss button once
 				buttons |= IN_TOSS;
 
-				// Deal with dropped weapon as usual
-				DropWeapon(client, currentweapon);
-
 				// Set swap time to block weapon pickup from touch
 				g_fLastWeaponSwap[client] = GetGameTime();
 			}
@@ -215,89 +230,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 			g_fLastWeaponUse[client] = GetGameTime();
 		}
 	}
-}
-
-void DropWeapon(int client, int weapon)
-{
-	if(!IsValidEdict(weapon))
-		return;
-
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
-	if(!IsWeaponDroppable(classname))
-		return;
-
-	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
-		return;
-
-	// Convert index to entity reference
-	weapon = EntIndexToEntRef(weapon);
-
-	int ammotype = GetAmmoType(weapon);
-	int ammo = GetWeaponAmmo(client, ammotype);
-
-	#if DEBUG > 0
-	PrintToServer("%N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
-	#endif
-
-	// Store ammo as secondary on weapon since it isn't used for anything
-	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
-
-	DataPack pack;
-	CreateDataTimer(0.1, DropWeaponPost, pack);
-
-	// Pass data to timer
-	pack.WriteCell(client);
-	pack.WriteCell(weapon);
-	pack.WriteCell(ammotype);
-	pack.WriteCell(ammo);
-}
-
-public Action DropWeaponPost(Handle timer, Handle pack)
-{
-	ResetPack(pack);
-
-	int client = ReadPackCell(pack);
-	int weapon = ReadPackCell(pack);
-	int ammotype = ReadPackCell(pack);
-	int ammo = ReadPackCell(pack);
-
-	if(!IsValidEdict(weapon))
-		return; // Are you trying to tick me again?
-
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-
-	if(owner != -1)
-		return;
-
-	#if DEBUG > 0
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
-	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
-	#endif
-
-	ChangeSpawnFlags(weapon);
-
-	if(IsPlayerAlive(client))
-	{
-		// It's possible to drop a weapon and pick up a new one before ammo has been removed
-		// So I'm trying to remove dropped ammo without touching new one
-		int current_ammo = GetWeaponAmmo(client, ammotype);
-		int new_ammo = current_ammo - ammo;
-
-		if(new_ammo < 0)
-			new_ammo = 0;
-
-		// Remove ammo from original owener
-		SetWeaponAmmo(client, ammotype, new_ammo);
-	}
-
-	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
-	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
 }
 
 public Action TakeWeapon(Handle timer, Handle pack)
