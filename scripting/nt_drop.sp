@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.6.0",
+	version = "0.6.1",
 	url = ""
 }
 
@@ -140,7 +140,8 @@ public Action OnWeaponDrop(int client, int weapon)
 	// Store ammo as secondary on weapon since it isn't used for anything
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
 
-	ChangeSpawnFlags(weapon);
+	// Have to delay spawnflag setting for a bit
+	CreateTimer(0.1, ChangeSpawnFlags, weapon);
 
 	if(IsPlayerAlive(client))
 	{
@@ -254,7 +255,7 @@ public Action TakeWeapon(Handle timer, Handle pack)
 	ClientCommand(client, "slot%d", slot+1);
 }
 
-void ChangeSpawnFlags(int weapon)
+public Action ChangeSpawnFlags(Handle timer, int weapon)
 {
 	// Prepare spawnflags datamap offset
 	static int spawnflags;
