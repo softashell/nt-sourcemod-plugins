@@ -5,7 +5,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define DEBUG 0
+#define DEBUG 1
 #define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.6.1",
+	version = "0.7.0",
 	url = ""
 }
 
@@ -65,50 +65,46 @@ public Action OnWeaponTouch(int weapon, int other)
 	if(!IsValidClient(other) || !IsPlayerAlive(other))
 		return Plugin_Continue;
 
-	if(GetGameTime() - g_fLastWeaponSwap[other] > 0.5)
-		return Plugin_Continue;
+	if(GetGameTime() - g_fLastWeaponSwap[other] < 0.5)
+		return Plugin_Handled; // Currently swapping weapons with +use, block touch
 	
-	// Currently swapping weapons with +use, block touch
-	return Plugin_Handled;
-}
-
-public Action OnWeaponPickup(int weapon, int other)
-{
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-	
-	if(other != owner)
-		return; // Didn't pick up weapon
-
-	if(!IsPlayerAlive(owner))
-		return;
-
-	// Remove current hooks
-	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
-	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
-	
-	int ammotype = GetAmmoType(weapon);
-	int current_ammo = GetWeaponAmmo(owner, ammotype);
-	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
-
-	// Remove secondary ammo
-	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", 0);
-
-	// Set the weapons secondary ammo as primary ammo
-	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
-
-	#if DEBUG > 0
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
-
-	PrintToChatAll("%s picked up by %N with %d ammo", classname, owner, ammo);
-	#endif
+	return Plugin_Continue;
 }
 
 public Action OnWeaponEquip(int client, int weapon) 
 { 
+	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	// Remove current hook
+	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
+
+	char classname[32];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return Plugin_Continue; // Can't get class name
+
+	if(!IsWeaponDroppable(classname))
+		return Plugin_Continue; // Don't care if it doesn't have ammo
+
+	int ammotype = GetAmmoType(weapon);
+	int current_ammo = GetWeaponAmmo(client, ammotype);
+	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
+
+	if(ammo != -1)
+	{
+		// Remove secondary ammo
+		SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
+
+		// Set the weapons secondary ammo as primary ammo
+		SetWeaponAmmo(client, ammotype, current_ammo + ammo);
+	}
+
+	#if DEBUG > 0
+	PrintToChatAll("%s picked up by %N with %d ammo", classname, client, ammo);
+	#endif
+
 	// Blocks ammo pickup from dropped weapons
-	return Plugin_Handled;
+	return Plugin_Continue;
 }
 
 public Action OnWeaponDrop(int client, int weapon)
@@ -121,9 +117,6 @@ public Action OnWeaponDrop(int client, int weapon)
 		return; // Can't get class name
 
 	if(!IsWeaponDroppable(classname))
-		return;
-
-	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
 		return;
 
 	// Convert index to entity reference
@@ -158,7 +151,6 @@ public Action OnWeaponDrop(int client, int weapon)
 	}
 
 	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
-	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons)
@@ -218,8 +210,8 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
 
 				// Press toss button once
-				buttons |= IN_TOSS;
-
+				buttons |= IN_TOSS; // If only SDKHooks_DropWeapon(client, currentweapon) worked
+				
 				// Set swap time to block weapon pickup from touch
 				g_fLastWeaponSwap[client] = GetGameTime();
 			}
@@ -248,11 +240,8 @@ public Action TakeWeapon(Handle timer, Handle pack)
 	// Pick up weapon
 	AcceptEntityInput(weapon, "use", client, client);
 
-	// Sometimes gets called twice if you stand close enough, but doesn't seem to cause any problems
-	OnWeaponPickup(weapon, client);
-
 	// Switch to target slot
-	ClientCommand(client, "slot%d", slot+1);
+	//ClientCommand(client, "slot%d", slot+1);
 }
 
 public Action ChangeSpawnFlags(Handle timer, int weapon)
@@ -261,7 +250,7 @@ public Action ChangeSpawnFlags(Handle timer, int weapon)
 	static int spawnflags;
 
 	// Try to find datamap offset for m_spawnflags property
-	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
+	if(!spawnflags && (spawnflags = FindDataMapInfo(weapon, "m_spawnflags")) == -1)
 	{
 		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
 	}
