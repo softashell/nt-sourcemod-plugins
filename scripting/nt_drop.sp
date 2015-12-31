@@ -206,8 +206,9 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 			if((currentweapon != -1) && IsValidEdict(currentweapon))
 			{
-				// Set active weapon
+				// Switch active weapon
 				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
+				ChangeEdictState(client, FindDataMapOffs(client, "m_hActiveWeapon"));
 
 				// Press toss button once
 				buttons |= IN_TOSS; // If only SDKHooks_DropWeapon(client, currentweapon) worked
@@ -238,10 +239,14 @@ public Action TakeWeapon(Handle timer, Handle pack)
 	int slot   = ReadPackCell(pack);
 
 	// Pick up weapon
-	AcceptEntityInput(weapon, "use", client, client);
+	//AcceptEntityInput(weapon, "use", client, client);
 
-	// Switch to target slot
-	//ClientCommand(client, "slot%d", slot+1);
+	// Equip weapon
+	EquipPlayerWeapon(client, weapon);
+
+	// Switch to active weapon
+	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
+	ChangeEdictState(client, FindDataMapOffs(client, "m_hActiveWeapon"));
 }
 
 public Action ChangeSpawnFlags(Handle timer, int weapon)
