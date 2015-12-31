@@ -67,6 +67,27 @@ public Action OnWeaponTouch(int weapon, int client)
 
 	if(GetGameTime() - g_fLastWeaponSwap[client] < 0.5)
 		return Plugin_Handled; // Currently swapping weapons with +use, block touch
+
+	char classname[32];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return Plugin_Continue; // Can't get class name
+
+	// Get current weapon from target slot
+	int slot = GetWeaponSlot(weapon);
+	int currentweapon = GetPlayerWeaponSlot(client, slot);
+
+	if(IsValidEdict(currentweapon))
+	{
+		char classname2[32];
+		if(GetEntityClassname(currentweapon, classname2, 32) && StrEqual(classname, classname2))
+		{
+			#if DEBUG > 0
+			PrintToChat(client, "OnWeaponTouch: Picking up %s [%d] ammo from %s [%d]", classname, currentweapon, classname2, weapon);
+			#endif
+
+			return Plugin_Handled; // Doesn't block it! ;-;
+		}
+	}
 	
 	return Plugin_Continue;
 }
@@ -90,18 +111,20 @@ public void OnWeaponEquip(int client, int weapon)
 	int current_ammo = GetWeaponAmmo(client, ammotype);
 	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
 
-	if(ammo != -1)
+	if(ammo > -1)
 	{
 		// Remove secondary ammo
 		SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
 
 		// Set the weapons secondary ammo as primary ammo
 		SetWeaponAmmo(client, ammotype, current_ammo + ammo);
+
+		#if DEBUG > 0
+		PrintToChatAll("%s picked up by %N with %d ammo", classname, client, ammo);
+		#endif
 	}
 
-	#if DEBUG > 0
-	PrintToChatAll("%s picked up by %N with %d ammo", classname, client, ammo);
-	#endif
+	return;
 }
 
 public void OnWeaponDrop(int client, int weapon)
