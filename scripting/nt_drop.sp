@@ -44,8 +44,8 @@ public void OnPluginStart()
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip);
-	SDKHook(client, SDKHook_WeaponDrop, OnWeaponDrop);
+	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
+	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
 }
 
 public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
@@ -60,31 +60,31 @@ public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 	#endif
 }
 
-public Action OnWeaponTouch(int weapon, int other)
+public Action OnWeaponTouch(int weapon, int client)
 {
-	if(!IsValidClient(other) || !IsPlayerAlive(other))
+	if(!IsValidClient(client) || !IsPlayerAlive(client))
 		return Plugin_Continue;
 
-	if(GetGameTime() - g_fLastWeaponSwap[other] < 0.5)
+	if(GetGameTime() - g_fLastWeaponSwap[client] < 0.5)
 		return Plugin_Handled; // Currently swapping weapons with +use, block touch
 	
 	return Plugin_Continue;
 }
 
-public Action OnWeaponEquip(int client, int weapon) 
+public void OnWeaponEquip(int client, int weapon) 
 { 
 	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
-		return Plugin_Continue;
+		return;
 
 	// Remove current hook
 	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 
 	char classname[32];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return Plugin_Continue; // Can't get class name
+		return; // Can't get class name
 
 	if(!IsWeaponDroppable(classname))
-		return Plugin_Continue; // Don't care if it doesn't have ammo
+		return; // Don't care if it doesn't have ammo
 
 	int ammotype = GetAmmoType(weapon);
 	int current_ammo = GetWeaponAmmo(client, ammotype);
@@ -102,12 +102,9 @@ public Action OnWeaponEquip(int client, int weapon)
 	#if DEBUG > 0
 	PrintToChatAll("%s picked up by %N with %d ammo", classname, client, ammo);
 	#endif
-
-	// Blocks ammo pickup from dropped weapons
-	return Plugin_Continue;
 }
 
-public Action OnWeaponDrop(int client, int weapon)
+public void OnWeaponDrop(int client, int weapon)
 {
 	if(!IsValidEdict(weapon))
 		return;
@@ -202,13 +199,13 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 				return;
 			}
 
-			int currentweapon = GetWeaponFromSlot(client, slot);
+			int currentweapon = GetPlayerWeaponSlot(client, slot);
 
 			if((currentweapon != -1) && IsValidEdict(currentweapon))
 			{
 				// Switch active weapon
 				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
-				ChangeEdictState(client, FindDataMapOffs(client, "m_hActiveWeapon"));
+				ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
 
 				// Press toss button once
 				buttons |= IN_TOSS; // If only SDKHooks_DropWeapon(client, currentweapon) worked
@@ -223,7 +220,6 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 			// Pass data to timer
 			pack.WriteCell(client);
 			pack.WriteCell(weapon);
-			pack.WriteCell(slot);
 
 			g_fLastWeaponUse[client] = GetGameTime();
 		}
@@ -236,17 +232,13 @@ public Action TakeWeapon(Handle timer, Handle pack)
 
 	int client = ReadPackCell(pack);
 	int weapon = ReadPackCell(pack);
-	int slot   = ReadPackCell(pack);
-
-	// Pick up weapon
-	//AcceptEntityInput(weapon, "use", client, client);
 
 	// Equip weapon
 	EquipPlayerWeapon(client, weapon);
 
 	// Switch to active weapon
 	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
-	ChangeEdictState(client, FindDataMapOffs(client, "m_hActiveWeapon"));
+	ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
 }
 
 public Action ChangeSpawnFlags(Handle timer, int weapon)
