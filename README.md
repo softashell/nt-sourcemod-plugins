@@ -20,7 +20,7 @@ nt_doublecap (**Requires nt_ghostcap to work**)
 ====================
 Removes ghost when it's captured to prevent double capping
 
-nt_drop
+nt_drop (**currently semi broken with latest sourcemod update, don't use it!**)
 ====================
 - Keeps weapons on ground all round.
 - Drops weapons with all spare ammo.

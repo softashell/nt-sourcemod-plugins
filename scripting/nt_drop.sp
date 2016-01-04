@@ -5,7 +5,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define DEBUG 1
+#define DEBUG 0
 #define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
@@ -56,7 +56,7 @@ public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 		return;
 
 	#if DEBUG > 0
-	PrintToServer("%N (%d) dropping weapons on death", client, client);
+	PrintToServer("[nt_drop] %N (%d) dropping all weapons on death", client, client);
 	#endif
 }
 
@@ -111,20 +111,19 @@ public void OnWeaponEquip(int client, int weapon)
 	int current_ammo = GetWeaponAmmo(client, ammotype);
 	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
 
-	if(ammo > -1)
-	{
-		// Remove secondary ammo
-		SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
+	if(ammo < 0)
+		return; // Weapon wasn't dropped
+	
+	// Remove secondary ammo
+	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
 
-		// Set the weapons secondary ammo as primary ammo
-		SetWeaponAmmo(client, ammotype, current_ammo + ammo);
+	// Set the weapons secondary ammo as primary ammo
+	SetWeaponAmmo(client, ammotype, current_ammo + ammo);
 
-		#if DEBUG > 0
-		PrintToChatAll("%s picked up by %N with %d ammo", classname, client, ammo);
-		#endif
-	}
-
-	return;
+	#if DEBUG > 0
+	PrintToServer("[nt_drop] %N (%d) picked up %s with %d ammo", client, client, classname, ammo);
+	PrintToChat(client, "picked up %s with %d ammo", classname, ammo);
+	#endif
 }
 
 public void OnWeaponDrop(int client, int weapon)
@@ -146,8 +145,8 @@ public void OnWeaponDrop(int client, int weapon)
 	int ammo = GetWeaponAmmo(client, ammotype);
 
 	#if DEBUG > 0
-	PrintToServer("%N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
-	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
+	PrintToServer("[nt_drop] %N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
+	PrintToChat(client, "dropped %s with %d ammo", classname, ammo);
 	#endif
 
 	// Store ammo as secondary on weapon since it isn't used for anything
