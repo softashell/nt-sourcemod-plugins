@@ -10,7 +10,7 @@
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.5.5"
+#define PLUGIN_VERSION	"1.5.6"
 
 public Plugin myinfo =
 {
@@ -114,7 +114,7 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 		#endif
 	}
 
- 	// Allow logging of ghost capture again
+	// Allow logging of ghost capture again
 	roundReset = true;
 }
 
@@ -131,45 +131,37 @@ public Action CheckGhostPosition(Handle timer)
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
-	if(carrier < 1 || carrier > MaxClients)
+	if(!IsValidClient(carrier) && !IsPlayerAlive(carrier))
 		return;
 
-	if(IsClientInGame(carrier) && IsPlayerAlive(carrier))
+	carrierTeamID = GetClientTeam(carrier);
+
+	for(capzone = 0; capzone <= totalCapzones; capzone++)
 	{
-		carrierTeamID = GetClientTeam(carrier);
+		if(!IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
+			continue; // Doesn't exist or no radius
 
-		for(capzone = 0; capzone <= totalCapzones; capzone++)
-		{
-			if(capzones[capzone] == 0) // Worldspawn
-				continue;
+		if(carrierTeamID != capTeam[capzone])
+			continue;  // Wrong capture zone
 
-			if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
-				continue;
+		GetClientAbsOrigin(carrier, ghostVector);
 
-			GetClientAbsOrigin(carrier, ghostVector);
+		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
-			distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
+		if(distance > capRadius[capzone])
+			continue; // Too far away
 
-			// If capzone has no radius ingore it
-			if(capRadius[capzone] <= 0)
-				continue;
+		if(!IsAnyEnemyStillAlive(carrierTeamID))
+			return; // Don't get anything if enemy team is dead already
 
-			if(distance <= capRadius[capzone])
-			{
-				if (!IsAnyEnemyStillAlive(carrierTeamID))
-					return; // Don't get anything if enemy team is dead already
+		roundReset = false; // Won't spam any more events unless value is set to true
 
-				roundReset = false; // Won't spam any more events unless value is set to true
+		PushOnGhostCapture(carrier);
 
-				PushOnGhostCapture(carrier);
+		LogGhostCapture(carrier, carrierTeamID);
 
-				LogGhostCapture(carrier, carrierTeamID);
-
-				break; //We're done here, no point in continuing loop
-			}
-		}
+		break; //We're done here, no point in continuing loop
 	}
-
 }
 
 bool IsAnyEnemyStillAlive(int team)
