@@ -10,7 +10,7 @@
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.5.6"
+#define PLUGIN_VERSION	"1.5.7"
 
 public Plugin myinfo =
 {
@@ -141,9 +141,6 @@ public Action CheckGhostPosition(Handle timer)
 		if(!IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
 			continue; // Doesn't exist or no radius
 
-		if(carrierTeamID != capTeam[capzone])
-			continue;  // Wrong capture zone
-
 		GetClientAbsOrigin(carrier, ghostVector);
 
 		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
@@ -151,16 +148,24 @@ public Action CheckGhostPosition(Handle timer)
 		if(distance > capRadius[capzone])
 			continue; // Too far away
 
-		if(!IsAnyEnemyStillAlive(carrierTeamID))
-			return; // Don't get anything if enemy team is dead already
+		if(carrierTeamID != capTeam[capzone])
+		{
+			PrintCenterText(carrier, "- WRONG RETRIEVAL ZONE -");
 
-		roundReset = false; // Won't spam any more events unless value is set to true
+ 			// Wrong capture point with no chance of standing on correct one as well
+			break;
+		}
+		else if(IsAnyEnemyStillAlive(carrierTeamID))
+		{
+			roundReset = false; // Won't spam any more events unless value is set to true
 
-		PushOnGhostCapture(carrier);
+			PushOnGhostCapture(carrier);
 
-		LogGhostCapture(carrier, carrierTeamID);
+			LogGhostCapture(carrier, carrierTeamID);
 
-		break; //We're done here, no point in continuing loop
+			 //We're done here, no point in continuing loop
+			break;
+		}
 	}
 }
 
