@@ -77,7 +77,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 		if(totalCapzones > MAXCAPZONES)
 		{
-			ThrowError("Too many capzones in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
+			ThrowError("Too many capture points in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
 		}
 
 		capzones[totalCapzones] = EntIndexToEntRef(entity);
@@ -174,15 +174,13 @@ bool IsAnyEnemyStillAlive(int team)
 
 	for(i = 1; i <= MaxClients; i++)
 	{
-		if(!IsClientInGame(i))
+		if(!IsClientInGame(i) || !IsPlayerAlive(i))
 			continue;
 
-		if(IsPlayerAlive(i)) {
-			enemyTeam = GetClientTeam(i);
+		enemyTeam = GetClientTeam(i);
 
-			if((team == TEAM_JINRAI && enemyTeam == TEAM_NSF) || (team == TEAM_NSF && enemyTeam == TEAM_JINRAI))
-				return true;
-		}
+		if((team == TEAM_JINRAI && enemyTeam == TEAM_NSF) || (team == TEAM_NSF && enemyTeam == TEAM_JINRAI))
+			return true;
 	}
 
 	return false;
