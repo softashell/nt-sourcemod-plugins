@@ -131,7 +131,7 @@ public Action CheckGhostPosition(Handle timer)
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
-	if(!IsValidClient(carrier) && !IsPlayerAlive(carrier))
+	if(!IsValidClient(carrier) || !IsPlayerAlive(carrier))
 		return;
 
 	carrierTeamID = GetClientTeam(carrier);
