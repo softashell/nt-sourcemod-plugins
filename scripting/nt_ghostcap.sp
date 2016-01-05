@@ -1,22 +1,27 @@
-#pragma semicolon 1
-
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.5.4"
+#pragma semicolon 1
+#pragma newdecls required
+
+#define PLUGIN_VERSION	"1.5.5"
 
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-new Handle:g_hRoundTime, Handle:g_hForwardCapture, Handle:g_hForwardSpawn;
+Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn;
 
-new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
+int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
+float capzoneVector[MAXCAPZONES+1][3];
+bool capzoneDataUpdated[MAXCAPZONES+1];
 
-new ghost, totalCapzones, bool:roundReset = true, Float:fStartRoundTime;
+int ghost, totalCapzones;
+bool roundReset = true;
+float fStartRoundTime;
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
 	name = "NEOTOKYO° Ghost capture event",
 	author = "soft as HELL",
@@ -25,25 +30,25 @@ public Plugin:myinfo =
 	url = ""
 };
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
 	g_hRoundTime = FindConVar("neo_round_timelimit");
 
 	g_hForwardCapture = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
 	g_hForwardSpawn = CreateGlobalForward("OnGhostSpawn", ET_Event, Param_Cell);
 
-	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
 
 	CreateTimer(0.25, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
-public OnMapEnd() {
+public void OnMapEnd() {
 	totalCapzones = 0;
 	roundReset = true;
 
-	new i;
+	int i;
 
 	for(i = 0; i <= MAXCAPZONES; i++)
 	{
@@ -52,9 +57,9 @@ public OnMapEnd() {
 	}
 }
 
-public OnEntityCreated(entity, const String:classname[])
+public void OnEntityCreated(int entity, const char[] classname)
 {
-	if (StrEqual(classname, "weapon_ghost"))
+	if(StrEqual(classname, "weapon_ghost"))
 	{
 		ghost = EntIndexToEntRef(entity);
 
@@ -74,17 +79,17 @@ public OnEntityCreated(entity, const String:classname[])
 	}
 }
 
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	fStartRoundTime = GetGameTime();
-	
+
 	if(!totalCapzones) // No cap zones
 		return;
-	
+
 	roundReset = true; // Allow logging of capture again
 
 	// Update capzone team every round
-	for (new capzone = 0; capzone <= totalCapzones; capzone++)
+	for (int capzone = 0; capzone <= totalCapzones; capzone++)
 	{
 		if(capzones[capzone] == 0) // Worldspawn
 			continue;
@@ -97,28 +102,27 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	}
 }
 
-public Action:CheckGhostPosition(Handle:timer)
+public Action CheckGhostPosition(Handle timer)
 {
-	if (!totalCapzones || !IsValidEdict(ghost))
+	if(!totalCapzones || !IsValidEdict(ghost))
 		return; // No capzones or no ghost
 
-	if (HasRoundEnded())
+	if(HasRoundEnded())
 		return;
 
-	decl Float:ghostVector[3], Float:distance;
-
-	new capzone, carrier, carrierTeamID;
+	int capzone, carrier, carrierTeamID;
+	float ghostVector[3], distance;
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
 	if(carrier < 1 || carrier > MaxClients)
 		return;
 
-	if (IsClientInGame(carrier) && IsPlayerAlive(carrier))
+	if(IsClientInGame(carrier) && IsPlayerAlive(carrier))
 	{
 		carrierTeamID = GetClientTeam(carrier);
 
-		for (capzone = 0; capzone <= totalCapzones; capzone++)
+		for(capzone = 0; capzone <= totalCapzones; capzone++)
 		{
 			if(capzones[capzone] == 0) // Worldspawn
 				continue;
@@ -140,7 +144,7 @@ public Action:CheckGhostPosition(Handle:timer)
 					return; // Don't get anything if enemy team is dead already
 
 				roundReset = false; // Won't spam any more events unless value is set to true
-				
+
 				PushOnGhostCapture(carrier);
 
 				LogGhostCapture(carrier, carrierTeamID);
@@ -148,13 +152,13 @@ public Action:CheckGhostPosition(Handle:timer)
 				break; //No point in continuing loop
 			}
 		}
-	} 
+	}
 
 }
 
-bool:IsAnyEnemyStillAlive(team)
+bool IsAnyEnemyStillAlive(int team)
 {
-	new enemyTeam, i;
+	int enemyTeam, i;
 
 	for(i = 1; i <= MaxClients; i++)
 	{
@@ -172,9 +176,9 @@ bool:IsAnyEnemyStillAlive(team)
 	return false;
 }
 
-bool:UpdateCapzoneData(capzone)
+bool UpdateCapzoneData(int capzone)
 {
-	new entity = capzones[capzone];
+	int entity = capzones[capzone];
 
 	if(!IsValidEdict(entity))
 		return false;
@@ -188,25 +192,25 @@ bool:UpdateCapzoneData(capzone)
 	return true;
 }
 
-bool:HasRoundEnded()
+bool HasRoundEnded()
 {
 	if(!roundReset)
 		return true;
 
-	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
-	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
-	
-	if (currentRoundTime > maxRoundTime + INACCURACY)
+	float maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
+	float currentRoundTime = GetGameTime() - fStartRoundTime;
+
+	if(currentRoundTime > maxRoundTime + INACCURACY)
 		return true; // This round has already ended, don't trigger caps until next round starts
 
 	return false;
 }
 
-LogGhostCapture(client, team)
+void LogGhostCapture(int client, int team)
 {
-	decl String:carrierSteamID[64], String:carrierTeam[18];	
-	new carrierUserID = GetClientUserId(client);
-	
+	char carrierSteamID[64], carrierTeam[18];
+	int carrierUserID = GetClientUserId(client);
+
 	GetClientAuthId(client, AuthId_Steam2, carrierSteamID, 64);
 	GetTeamName(team, carrierTeam, sizeof(carrierTeam));
 
@@ -214,14 +218,14 @@ LogGhostCapture(client, team)
 	LogToGame("\"%N<%d><%s><%s>\" triggered \"ghost_capture\"", client, carrierUserID, carrierSteamID, carrierTeam);
 }
 
-PushOnGhostCapture(client)
+void PushOnGhostCapture(int client)
 {
 	Call_StartForward(g_hForwardCapture);
 	Call_PushCell(client);
 	Call_Finish();
 }
 
-PushOnGhostSpawn(entity)
+void PushOnGhostSpawn(int entity)
 {
 	Call_StartForward(g_hForwardSpawn);
 	Call_PushCell(entity);
