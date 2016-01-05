@@ -22,6 +22,7 @@ public OnPluginStart()
 {
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
 }
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
@@ -83,7 +84,9 @@ public Action:CountPlayers(Handle:timer)
 	{
 		if(countTotal <= 2)
 			return;
-
+			
+		CreateTimer(3.0, LastManStanding, lastNsf);
+		CreateTimer(3.0, LastManStanding, lastJin);
 		return;
 		//Duel(lastJin);
 		//Duel(lastNsf);
@@ -92,19 +95,19 @@ public Action:CountPlayers(Handle:timer)
 	{
 		if(countNsf == 1)
 		{
-			LastManStanding(lastNsf);
+			CreateTimer(3.0, LastManStanding, lastNsf);
 		}
 	}
 	else if (countNsf >= 2)
 	{
 		if(countJin == 1)
 		{
-			LastManStanding(lastJin);
+			CreateTimer(3.0, LastManStanding, lastJin);
 		}
 	}
 }
 
-LastManStanding(client)
+public Action LastManStanding(Handle timer, int client)
 {
 	if(!IsPlayerAlive(client) || g_MessageShownLast[client])
 		return;
@@ -113,6 +116,16 @@ LastManStanding(client)
 
 	g_MessageShownLast[client] = true;
 }
+
+public Action Event_PlayerDisconnect(Handle event, const char[] name, bool dontBroadcast)
+{
+	if(hPlayerCounter == INVALID_HANDLE)
+		hPlayerCounter = CreateTimer(0.1, CountPlayers);
+	
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	g_MessageShownLast[client] = false;
+}
+
 
 Duel(client)
 {
