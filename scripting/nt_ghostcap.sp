@@ -10,7 +10,7 @@
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.5.7"
+#define PLUGIN_VERSION	"1.5.8"
 
 public Plugin myinfo =
 {
@@ -95,7 +95,7 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	PrintToServer("[nt_ghostcap] Updating capture point data at round start");
 	#endif
 
-	for (int capzone = 0; capzone <= totalCapzones; capzone++)
+	for(int capzone = 0; capzone <= totalCapzones; capzone++)
 	{
 		if(capzones[capzone] == 0 || !IsValidEdict(capzones[capzone])) // Worldspawn
 			continue;
@@ -135,13 +135,12 @@ public Action CheckGhostPosition(Handle timer)
 		return;
 
 	carrierTeamID = GetClientTeam(carrier);
+	GetClientAbsOrigin(carrier, ghostVector);
 
 	for(capzone = 0; capzone <= totalCapzones; capzone++)
 	{
 		if(!IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
 			continue; // Doesn't exist or no radius
-
-		GetClientAbsOrigin(carrier, ghostVector);
 
 		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
