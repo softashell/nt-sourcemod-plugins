@@ -6,20 +6,11 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.5.5"
-
+#define DEBUG 0
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn;
-
-int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
-float capzoneVector[MAXCAPZONES+1][3];
-bool capzoneDataUpdated[MAXCAPZONES+1];
-
-int ghost, totalCapzones;
-bool roundReset = true;
-float fStartRoundTime;
+#define PLUGIN_VERSION	"1.5.5"
 
 public Plugin myinfo =
 {
@@ -29,6 +20,18 @@ public Plugin myinfo =
 	version = PLUGIN_VERSION,
 	url = ""
 };
+
+Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn;
+
+// Globals
+int ghost, totalCapzones;
+bool roundReset = true;
+float fStartRoundTime;
+
+// Capture point data
+int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
+float capzoneVector[MAXCAPZONES+1][3];
+bool capzoneDataUpdated[MAXCAPZONES+1];
 
 public void OnPluginStart()
 {
@@ -44,13 +47,16 @@ public void OnPluginStart()
 	CreateTimer(0.25, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
-public void OnMapEnd() {
+public void OnMapEnd()
+{
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Map ended, resetting everything and marking zones for update");
+	#endif
+
 	totalCapzones = 0;
 	roundReset = true;
 
-	int i;
-
-	for(i = 0; i <= MAXCAPZONES; i++)
+	for(int i = 0; i <= MAXCAPZONES; i++)
 	{
 		capzones[i] = 0;
 		capzoneDataUpdated[i] = false;
@@ -71,35 +77,45 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 		if(totalCapzones > MAXCAPZONES)
 		{
-			PrintToServer("Too many capzones in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
-			return;
+			ThrowError("Too many capzones in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
 		}
 
-		capzones[totalCapzones]   = entity;
+		capzones[totalCapzones] = EntIndexToEntRef(entity);
 	}
 }
 
-public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
+public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	fStartRoundTime = GetGameTime();
 
-	if(!totalCapzones) // No cap zones
-		return;
+	if(!totalCapzones)
+		return; // No cap zones
 
-	roundReset = true; // Allow logging of capture again
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Updating capture point data at round start");
+	#endif
 
-	// Update capzone team every round
 	for (int capzone = 0; capzone <= totalCapzones; capzone++)
 	{
-		if(capzones[capzone] == 0) // Worldspawn
+		if(capzones[capzone] == 0 || !IsValidEdict(capzones[capzone])) // Worldspawn
 			continue;
 
-		if(!capzoneDataUpdated[capzone])
+		if(!capzoneDataUpdated[capzone]) // Gets called on first round after a map change
 			capzoneDataUpdated[capzone] = UpdateCapzoneData(capzone);
 
-		//PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+		// Update current owning team
 		capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
+
+		#if DEBUG > 0
+		char teamname[10];
+		GetTeamName(capTeam[capzone], teamname, 10);
+
+		PrintToServer("[nt_ghostcap] #%d %s - Radius: %d, Location: {%.0f, %.0f, %.0f}", capzone, teamname, capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+		#endif
 	}
+
+ 	// Allow logging of ghost capture again
+	roundReset = true;
 }
 
 public Action CheckGhostPosition(Handle timer)
@@ -149,7 +165,7 @@ public Action CheckGhostPosition(Handle timer)
 
 				LogGhostCapture(carrier, carrierTeamID);
 
-				break; //No point in continuing loop
+				break; //We're done here, no point in continuing loop
 			}
 		}
 	}
@@ -183,11 +199,15 @@ bool UpdateCapzoneData(int capzone)
 	if(!IsValidEdict(entity))
 		return false;
 
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Updating outdated information for capture point #%d!", capzone);
+	#endif
+
+	// Update radius
 	capRadius[capzone]  = GetEntProp(entity, Prop_Send, "m_Radius");
 
+	// Update location
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector[capzone]);
-
-	//PrintToServer("Updating data! Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
 
 	return true;
 }
@@ -220,6 +240,10 @@ void LogGhostCapture(int client, int team)
 
 void PushOnGhostCapture(int client)
 {
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost captured by %N (%d)! Pushing OnGhostCapture forward", client, client);
+	#endif
+
 	Call_StartForward(g_hForwardCapture);
 	Call_PushCell(client);
 	Call_Finish();
@@ -227,6 +251,10 @@ void PushOnGhostCapture(int client)
 
 void PushOnGhostSpawn(int entity)
 {
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost spawned! Pushing OnGhostSpawn forward");
+	#endif
+
 	Call_StartForward(g_hForwardSpawn);
 	Call_PushCell(entity);
 	Call_Finish();
