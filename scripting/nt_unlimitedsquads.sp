@@ -60,7 +60,7 @@ public Action cmd_joinstar(int client, int args)
 
     int star = StringToInt(arg);
 
-    if(GetConVarInt(g_hSquadLock) > 0 && (GetPlayerStar(client) != TEAM_NONE))
+    if(GetConVarInt(g_hSquadLock) > 0 && (GetPlayerStar(client) != 0))
         return Plugin_Handled; // Squad change blocked
 
     SetPlayerStar(client, star);
