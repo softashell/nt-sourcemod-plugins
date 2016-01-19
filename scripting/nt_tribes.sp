@@ -94,6 +94,14 @@ public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 		SetConVarFloat(hFriction, 0.0);
 		SetConVarInt(hAirAccelerate, 1000);
 		SetConVarInt(hAccelerate, 1000);
+		
+		decl String:currentMap[64];
+		GetCurrentMap(currentMap, 64);
+		if(!StrEqual(currentMap, "nt_vtol_ctg") || !StrEqual(currentMap, "nt_isolation_ctg") || !StrEqual(currentMap, "nt_decom_ctg"))
+		{
+			SetConVarInt(hEnabled, 0);
+			PrintToChatAll("TribesTokyo is disabled on this map. Sorry folks.");
+		}
 	}
 	else
 	{
