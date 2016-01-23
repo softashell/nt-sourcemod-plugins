@@ -1,22 +1,18 @@
-#pragma semicolon 1
-
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <neotokyo>
 
-#define PLUGIN_VERSION	"1.5.4"
+#pragma semicolon 1
+#pragma newdecls required
 
+#define DEBUG 0
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-new Handle:g_hRoundTime, Handle:g_hForwardCapture, Handle:g_hForwardSpawn;
+#define PLUGIN_VERSION	"1.5.8"
 
-new capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1], Float:capzoneVector[MAXCAPZONES+1][3], bool:capzoneDataUpdated[MAXCAPZONES+1];
-
-new ghost, totalCapzones, bool:roundReset = true, Float:fStartRoundTime;
-
-public Plugin:myinfo =
+public Plugin myinfo =
 {
 	name = "NEOTOKYO° Ghost capture event",
 	author = "soft as HELL",
@@ -25,36 +21,51 @@ public Plugin:myinfo =
 	url = ""
 };
 
-public OnPluginStart()
+Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn;
+
+// Globals
+int ghost, totalCapzones;
+bool roundReset = true;
+float fStartRoundTime;
+
+// Capture point data
+int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
+float capzoneVector[MAXCAPZONES+1][3];
+bool capzoneDataUpdated[MAXCAPZONES+1];
+
+public void OnPluginStart()
 {
-	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
 	g_hRoundTime = FindConVar("neo_round_timelimit");
 
 	g_hForwardCapture = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
 	g_hForwardSpawn = CreateGlobalForward("OnGhostSpawn", ET_Event, Param_Cell);
 
-	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
 
 	CreateTimer(0.25, CheckGhostPosition, _, TIMER_REPEAT);
 }
 
-public OnMapEnd() {
+public void OnMapEnd()
+{
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Map ended, resetting everything and marking zones for update");
+	#endif
+
 	totalCapzones = 0;
 	roundReset = true;
 
-	new i;
-
-	for(i = 0; i <= MAXCAPZONES; i++)
+	for(int i = 0; i <= MAXCAPZONES; i++)
 	{
 		capzones[i] = 0;
 		capzoneDataUpdated[i] = false;
 	}
 }
 
-public OnEntityCreated(entity, const String:classname[])
+public void OnEntityCreated(int entity, const char[] classname)
 {
-	if (StrEqual(classname, "weapon_ghost"))
+	if(StrEqual(classname, "weapon_ghost"))
 	{
 		ghost = EntIndexToEntRef(entity);
 
@@ -66,147 +77,154 @@ public OnEntityCreated(entity, const String:classname[])
 
 		if(totalCapzones > MAXCAPZONES)
 		{
-			PrintToServer("Too many capzones in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
-			return;
+			ThrowError("Too many capture points in map! Consider changing MAXCAPZONES. (#%i)", totalCapzones);
 		}
 
-		capzones[totalCapzones]   = entity;
+		capzones[totalCapzones] = EntIndexToEntRef(entity);
 	}
 }
 
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	fStartRoundTime = GetGameTime();
-	
-	if(!totalCapzones) // No cap zones
-		return;
-	
-	roundReset = true; // Allow logging of capture again
 
-	// Update capzone team every round
-	for (new capzone = 0; capzone <= totalCapzones; capzone++)
+	if(!totalCapzones)
+		return; // No cap zones
+
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Updating capture point data at round start");
+	#endif
+
+	for(int capzone = 0; capzone <= totalCapzones; capzone++)
 	{
-		if(capzones[capzone] == 0) // Worldspawn
+		if(capzones[capzone] == 0 || !IsValidEdict(capzones[capzone])) // Worldspawn
 			continue;
 
-		if(!capzoneDataUpdated[capzone])
+		if(!capzoneDataUpdated[capzone]) // Gets called on first round after a map change
 			capzoneDataUpdated[capzone] = UpdateCapzoneData(capzone);
 
-		//PrintToChatAll("Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+		// Update current owning team
 		capTeam[capzone] = GetEntProp(capzones[capzone], Prop_Send, "m_OwningTeamNumber");
+
+		#if DEBUG > 0
+		char teamname[10];
+		GetTeamName(capTeam[capzone], teamname, 10);
+
+		PrintToServer("[nt_ghostcap] #%d %s - Radius: %d, Location: {%.0f, %.0f, %.0f}", capzone, teamname, capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
+		#endif
 	}
+
+	// Allow logging of ghost capture again
+	roundReset = true;
 }
 
-public Action:CheckGhostPosition(Handle:timer)
+public Action CheckGhostPosition(Handle timer)
 {
-	if (!totalCapzones || !IsValidEdict(ghost))
+	if(!totalCapzones || !IsValidEdict(ghost))
 		return; // No capzones or no ghost
 
-	if (HasRoundEnded())
+	if(HasRoundEnded())
 		return;
 
-	decl Float:ghostVector[3], Float:distance;
-
-	new capzone, carrier, carrierTeamID;
+	int capzone, carrier, carrierTeamID;
+	float ghostVector[3], distance;
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
-	if(carrier < 1 || carrier > MaxClients)
+	if(!IsValidClient(carrier) || !IsPlayerAlive(carrier))
 		return;
 
-	if (IsClientInGame(carrier) && IsPlayerAlive(carrier))
+	carrierTeamID = GetClientTeam(carrier);
+	GetClientAbsOrigin(carrier, ghostVector);
+
+	for(capzone = 0; capzone <= totalCapzones; capzone++)
 	{
-		carrierTeamID = GetClientTeam(carrier);
+		if(!IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
+			continue; // Doesn't exist or no radius
 
-		for (capzone = 0; capzone <= totalCapzones; capzone++)
+		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
+
+		if(distance > capRadius[capzone])
+			continue; // Too far away
+
+		if(carrierTeamID != capTeam[capzone])
 		{
-			if(capzones[capzone] == 0) // Worldspawn
-				continue;
+			PrintCenterText(carrier, "- WRONG RETRIEVAL ZONE -");
 
-			if(carrierTeamID != capTeam[capzone]) // Wrong capture zone
-				continue;
-
-			GetClientAbsOrigin(carrier, ghostVector);
-
-			distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
-
-			// If capzone has no radius ingore it
-			if(capRadius[capzone] <= 0)
-				continue;
-
-			if(distance <= capRadius[capzone])
-			{
-				if (!IsAnyEnemyStillAlive(carrierTeamID))
-					return; // Don't get anything if enemy team is dead already
-
-				roundReset = false; // Won't spam any more events unless value is set to true
-				
-				PushOnGhostCapture(carrier);
-
-				LogGhostCapture(carrier, carrierTeamID);
-
-				break; //No point in continuing loop
-			}
+ 			// Wrong capture point with no chance of standing on correct one as well
+			break;
 		}
-	} 
+		else if(IsAnyEnemyStillAlive(carrierTeamID))
+		{
+			roundReset = false; // Won't spam any more events unless value is set to true
 
+			PushOnGhostCapture(carrier);
+
+			LogGhostCapture(carrier, carrierTeamID);
+
+			 //We're done here, no point in continuing loop
+			break;
+		}
+	}
 }
 
-bool:IsAnyEnemyStillAlive(team)
+bool IsAnyEnemyStillAlive(int team)
 {
-	new enemyTeam, i;
+	int enemyTeam, i;
 
 	for(i = 1; i <= MaxClients; i++)
 	{
-		if(!IsClientInGame(i))
+		if(!IsClientInGame(i) || !IsPlayerAlive(i))
 			continue;
 
-		if(IsPlayerAlive(i)) {
-			enemyTeam = GetClientTeam(i);
+		enemyTeam = GetClientTeam(i);
 
-			if((team == TEAM_JINRAI && enemyTeam == TEAM_NSF) || (team == TEAM_NSF && enemyTeam == TEAM_JINRAI))
-				return true;
-		}
+		if((team == TEAM_JINRAI && enemyTeam == TEAM_NSF) || (team == TEAM_NSF && enemyTeam == TEAM_JINRAI))
+			return true;
 	}
 
 	return false;
 }
 
-bool:UpdateCapzoneData(capzone)
+bool UpdateCapzoneData(int capzone)
 {
-	new entity = capzones[capzone];
+	int entity = capzones[capzone];
 
 	if(!IsValidEdict(entity))
 		return false;
 
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Updating outdated information for capture point #%d!", capzone);
+	#endif
+
+	// Update radius
 	capRadius[capzone]  = GetEntProp(entity, Prop_Send, "m_Radius");
 
+	// Update location
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", capzoneVector[capzone]);
-
-	//PrintToServer("Updating data! Capzone: %d, Radius: %i, Location: %.1f %.1f %.1f", capzones[capzone], capRadius[capzone], capzoneVector[capzone][0], capzoneVector[capzone][1], capzoneVector[capzone][2]);
 
 	return true;
 }
 
-bool:HasRoundEnded()
+bool HasRoundEnded()
 {
 	if(!roundReset)
 		return true;
 
-	new Float:maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
-	new Float:currentRoundTime = GetGameTime() - fStartRoundTime;
-	
-	if (currentRoundTime > maxRoundTime + INACCURACY)
+	float maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
+	float currentRoundTime = GetGameTime() - fStartRoundTime;
+
+	if(currentRoundTime > maxRoundTime + INACCURACY)
 		return true; // This round has already ended, don't trigger caps until next round starts
 
 	return false;
 }
 
-LogGhostCapture(client, team)
+void LogGhostCapture(int client, int team)
 {
-	decl String:carrierSteamID[64], String:carrierTeam[18];	
-	new carrierUserID = GetClientUserId(client);
-	
+	char carrierSteamID[64], carrierTeam[18];
+	int carrierUserID = GetClientUserId(client);
+
 	GetClientAuthId(client, AuthId_Steam2, carrierSteamID, 64);
 	GetTeamName(team, carrierTeam, sizeof(carrierTeam));
 
@@ -214,15 +232,23 @@ LogGhostCapture(client, team)
 	LogToGame("\"%N<%d><%s><%s>\" triggered \"ghost_capture\"", client, carrierUserID, carrierSteamID, carrierTeam);
 }
 
-PushOnGhostCapture(client)
+void PushOnGhostCapture(int client)
 {
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost captured by %N (%d)! Pushing OnGhostCapture forward", client, client);
+	#endif
+
 	Call_StartForward(g_hForwardCapture);
 	Call_PushCell(client);
 	Call_Finish();
 }
 
-PushOnGhostSpawn(entity)
+void PushOnGhostSpawn(int entity)
 {
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost spawned! Pushing OnGhostSpawn forward");
+	#endif
+
 	Call_StartForward(g_hForwardSpawn);
 	Call_PushCell(entity);
 	Call_Finish();

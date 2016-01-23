@@ -29,7 +29,7 @@ public Plugin:myinfo =
     name = "TRIBESTOKYO°",
     author = "soft as HELL",
     description = "fun allowed",
-    version = "1.1",
+    version = "1.2",
     url = ""
 };
 
@@ -94,6 +94,14 @@ public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 		SetConVarFloat(hFriction, 0.0);
 		SetConVarInt(hAirAccelerate, 1000);
 		SetConVarInt(hAccelerate, 1000);
+		
+		decl String:currentMap[64];
+		GetCurrentMap(currentMap, 64);
+		if(!StrEqual(currentMap, "nt_vtol_ctg") || !StrEqual(currentMap, "nt_isolation_ctg") || !StrEqual(currentMap, "nt_decom_ctg"))
+		{
+			SetConVarInt(hEnabled, 0);
+			PrintToChatAll("TribesTokyo is disabled on this map. Sorry folks.");
+		}
 	}
 	else
 	{
@@ -155,7 +163,7 @@ public Action:cmd_handler(client, const String:command[], args)
 	return Plugin_Continue;
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+public Action:OnPlayerRunCmd(client, &buttons)
 {	
 	if(GetConVarInt(hEnabled) < 1)
 		return Plugin_Continue;
@@ -165,6 +173,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		buttons &= ~IN_THERMOPTIC;
 	}
+	
 	return Plugin_Continue;
 }
 

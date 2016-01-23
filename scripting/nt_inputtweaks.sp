@@ -7,15 +7,14 @@ public Plugin:myinfo =
 	name = "NEOTOKYO° Input tweaks",
 	author = "soft as HELL",
 	description = "Tweaks some questionable inputs",
-	version = "0.1",
+	version = "0.2",
 	url = ""
 }
 
-new bool:g_bAimHeld[MAXPLAYERS+1];
+bool g_bAimHeld[MAXPLAYERS+1];
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+public Action OnPlayerRunCmd(int client, int &buttons)
 {	
-
 	if((buttons & IN_AIM) == IN_AIM)
 	{
 		if(g_bAimHeld[client])

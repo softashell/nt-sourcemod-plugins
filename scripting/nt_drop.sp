@@ -1,18 +1,20 @@
-#pragma semicolon 1
-
 #include <sdkhooks>
 #include <sdktools>
 #include <neotokyo>
 
+#pragma semicolon 1
+#pragma newdecls required
+
 #define DEBUG 0
 #define SF_NORESPAWN (1 << 30)
+#define EF_NODRAW 32
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.3",
+	version = "0.7.0",
 	url = ""
 }
 
@@ -24,32 +26,29 @@ char weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-bool g_bTossHeld[MAXPLAYERS+1];
+float g_fLastWeaponUse[MAXPLAYERS+1], g_fLastWeaponSwap[MAXPLAYERS+1];
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-	HookEvent("player_death", event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 
-	// Hook equp if plugin is restarted
+	// Hook again if plugin is restarted
 	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsValidClient(client))
-			SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
+		{
+			OnClientPutInServer(client);
+		}
 	}
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_WeaponEquip, OnWeaponEquip); 
+	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
+	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
 }
 
-public Action:OnWeaponEquip(client, weapon) 
-{ 
-	// Blocks ammo pickup from dropped weapons
-	return Plugin_Handled;
-}
-
-public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
@@ -57,115 +56,104 @@ public event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 		return;
 
 	#if DEBUG > 0
-	PrintToServer("%N (%d) dropping weapons on death", client, client);
+	PrintToServer("[nt_drop] %N (%d) dropping all weapons on death", client, client);
 	#endif
-
-	static hMyWeapons;
-
-	if (!hMyWeapons && (hMyWeapons = FindSendPropInfo("CBasePlayer", "m_hMyWeapons")) == -1)
-	{
-		ThrowError("Failed to obtain: \"m_hMyWeapons\"!");
-	}
-
-	for(int slot; slot <= 5; slot++)
-	{
-		int weapon = GetEntDataEnt2(client, hMyWeapons + (slot * 4));
-
-		WeaponDropPost(client, weapon);
-	}
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float angles[3], &weapon)
-{	
-	if((buttons & IN_TOSS) == IN_TOSS)
-	{
-		if(g_bTossHeld[client])
-		{
-			buttons &= ~IN_TOSS; // Weapon only gets dropped on release
-		}
-		else 
-		{
-			int active_weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-
-			WeaponDropPost(client, active_weapon);
-
-			g_bTossHeld[client] = true;
-		}
-	}
-	else 
-	{
-		g_bTossHeld[client] = false;
-	}
-}
-
-public OnWeaponPickup(weapon, other)
+public Action OnWeaponTouch(int weapon, int client)
 {
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
+	if(!IsValidClient(client) || !IsPlayerAlive(client))
+		return Plugin_Continue;
 
-	if(other != owner)
-		return; // Didn't pick up weapon
+	if(GetGameTime() - g_fLastWeaponSwap[client] < 0.5)
+		return Plugin_Handled; // Currently swapping weapons with +use, block touch
+
+	char classname[32];
+	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+		return Plugin_Continue; // Can't get class name
+
+	// Get current weapon from target slot
+	int slot = GetWeaponSlot(weapon);
+	int currentweapon = GetPlayerWeaponSlot(client, slot);
+
+	if(IsValidEdict(currentweapon))
+	{
+		char classname2[32];
+		if(GetEntityClassname(currentweapon, classname2, 32) && StrEqual(classname, classname2))
+		{
+			#if DEBUG > 0
+			PrintToChat(client, "OnWeaponTouch: Picking up %s [%d] ammo from %s [%d]", classname, currentweapon, classname2, weapon);
+			#endif
+
+			return Plugin_Handled; // Doesn't block it! ;-;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+public void OnWeaponEquip(int client, int weapon) 
+{ 
+	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
+		return;
 
 	// Remove current hook
-	SDKUnhook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 
-	if(!IsPlayerAlive(owner))
-		return;
-
-	int ammotype = GetAmmoType(weapon);
-	int current_ammo = GetWeaponAmmo(owner, ammotype);
-	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
-
-	// Remove secondary ammo
-	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", 0);
-
-	// Set the weapons secondary ammo as primary ammo
-	SetWeaponAmmo(owner, ammotype, current_ammo + ammo);
-
-	#if DEBUG > 0
-	char classname[30];
+	char classname[32];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 		return; // Can't get class name
 
-	PrintToChatAll("%s picked up by %N with %d ammo", classname, owner, ammo);
+	if(!IsWeaponDroppable(classname))
+		return; // Don't care if it doesn't have ammo
+
+	int ammotype = GetAmmoType(weapon);
+	int current_ammo = GetWeaponAmmo(client, ammotype);
+	int ammo = GetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount");
+
+	if(ammo < 0)
+		return; // Weapon wasn't dropped
+	
+	// Remove secondary ammo
+	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
+
+	// Set the weapons secondary ammo as primary ammo
+	SetWeaponAmmo(client, ammotype, current_ammo + ammo);
+
+	#if DEBUG > 0
+	PrintToServer("[nt_drop] %N (%d) picked up %s with %d ammo", client, client, classname, ammo);
+	PrintToChat(client, "picked up %s with %d ammo", classname, ammo);
 	#endif
 }
 
-public Action:timer_DropWeapon(Handle timer, Handle pack)
+public void OnWeaponDrop(int client, int weapon)
 {
-	ResetPack(pack);
-
-	int client = ReadPackCell(pack);
-	int weapon = ReadPackCell(pack);
-	int ammotype = ReadPackCell(pack);
-	int ammo = ReadPackCell(pack);
-
 	if(!IsValidEdict(weapon))
-		return; // Are you trying to tick me again?
-
-	int owner = GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity");
-
-	if(owner != -1)
 		return;
 
-	#if DEBUG > 0
-	char classname[30];
+	char classname[32];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
 		return; // Can't get class name
 
-	PrintToChat(client, "%s dropped by %N with %d ammo", classname, client, ammo);
+	if(!IsWeaponDroppable(classname))
+		return;
+
+	// Convert index to entity reference
+	weapon = EntIndexToEntRef(weapon);
+
+	int ammotype = GetAmmoType(weapon);
+	int ammo = GetWeaponAmmo(client, ammotype);
+
+	#if DEBUG > 0
+	PrintToServer("[nt_drop] %N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
+	PrintToChat(client, "dropped %s with %d ammo", classname, ammo);
 	#endif
 
-	// Prepare spawnflags datamap offset
-	static spawnflags;
+	// Store ammo as secondary on weapon since it isn't used for anything
+	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
 
-	// Try to find datamap offset for m_spawnflags property
-	if(!spawnflags && (spawnflags = FindDataMapOffs(weapon, "m_spawnflags")) == -1)
-	{
-		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
-	}
-
-	// Remove SF_NORESPAWN flag from m_spawnflags datamap
-	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
+	// Have to delay spawnflag setting for a bit
+	CreateTimer(0.1, ChangeSpawnFlags, weapon);
 
 	if(IsPlayerAlive(client))
 	{
@@ -181,45 +169,113 @@ public Action:timer_DropWeapon(Handle timer, Handle pack)
 		SetWeaponAmmo(client, ammotype, new_ammo);
 	}
 
-	SDKHook(weapon, SDKHook_TouchPost, OnWeaponPickup);
+	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 }
 
-WeaponDropPost(client, weapon)
+public Action OnPlayerRunCmd(int client, int &buttons)
+{	
+	if(buttons & IN_USE)
+	{
+		// Get the entity a client is aiming at
+		int weapon = GetClientAimTarget(client, false);
+
+		// If we found an entity - make sure its valid
+		if(!IsValidEdict(weapon))
+			return;
+
+		// Retrieve the client's eye position and entity origin vector to compare distance
+		float vec1[3], vec2[3], distance;
+		GetClientEyePosition(client, vec1);
+		GetEntPropVector(weapon, Prop_Send, "m_vecOrigin", vec2);
+		distance = GetVectorDistance(vec1, vec2);
+
+		if(distance >= 100.0) // Around the same distance as ghost pickup
+			return; // Too far away
+
+		char classname[30];
+		if(!GetEntityClassname(weapon, classname, sizeof(classname)))
+			return; // Can't get class name
+
+		int slot = GetWeaponSlot(weapon);
+
+		if((slot == SLOT_PRIMARY) || (slot == SLOT_SECONDARY))
+		{
+			if(GetGameTime() - g_fLastWeaponUse[client] < 1.0)
+				return; // Spamming use
+
+			int fEffects = GetEntProp(weapon, Prop_Data, "m_fEffects");
+			if(fEffects & EF_NODRAW)
+				return; // Not drawn to clients, probably weapon respawn point
+
+			#if DEBUG > 0
+			PrintToChat(client, "use %s - id: %d, slot: %d, distance: %.1f", classname, weapon, slot, distance);
+			#endif
+
+			if(StrEqual(classname, "weapon_ghost"))
+			{
+				g_fLastWeaponUse[client] = GetGameTime();
+
+				// Release use so the ghost gets picked up
+				buttons &= ~IN_USE;
+
+				return;
+			}
+
+			int currentweapon = GetPlayerWeaponSlot(client, slot);
+
+			if((currentweapon != -1) && IsValidEdict(currentweapon))
+			{
+				// Switch active weapon
+				SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", currentweapon);
+				ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
+
+				// Press toss button once
+				buttons |= IN_TOSS; // If only SDKHooks_DropWeapon(client, currentweapon) worked
+				
+				// Set swap time to block weapon pickup from touch
+				g_fLastWeaponSwap[client] = GetGameTime();
+			}
+
+			DataPack pack;
+			CreateDataTimer(0.1, TakeWeapon, pack);
+
+			// Pass data to timer
+			pack.WriteCell(client);
+			pack.WriteCell(weapon);
+
+			g_fLastWeaponUse[client] = GetGameTime();
+		}
+	}
+}
+
+public Action TakeWeapon(Handle timer, Handle pack)
 {
-	if(!IsValidEdict(weapon))
-		return;
+	ResetPack(pack);
 
-	char classname[30];
-	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
-		return; // Can't get class name
+	int client = ReadPackCell(pack);
+	int weapon = ReadPackCell(pack);
 
-	if(!IsWeaponDroppable(classname))
-		return;
+	// Equip weapon
+	EquipPlayerWeapon(client, weapon);
 
-	if(GetEntProp(weapon, Prop_Data, "m_bInReload"))
-		return;
+	// Switch to active weapon
+	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
+	ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
+}
 
-	// Convert index to entity reference
-	weapon = EntIndexToEntRef(weapon);
+public Action ChangeSpawnFlags(Handle timer, int weapon)
+{
+	// Prepare spawnflags datamap offset
+	static int spawnflags;
 
-	int ammotype = GetAmmoType(weapon);
-	int ammo = GetWeaponAmmo(client, ammotype);
+	// Try to find datamap offset for m_spawnflags property
+	if(!spawnflags && (spawnflags = FindDataMapInfo(weapon, "m_spawnflags")) == -1)
+	{
+		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
+	}
 
-	#if DEBUG > 0
-	PrintToServer("%N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
-	#endif
-
-	// Store ammo as secondary on weapon since it isn't used for anything
-	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
-
-	DataPack pack;
-	CreateDataTimer(0.1, timer_DropWeapon, pack);
-
-	// Pass data to timer
-	pack.WriteCell(client);
-	pack.WriteCell(weapon);
-	pack.WriteCell(ammotype);
-	pack.WriteCell(ammo);
+	// Remove SF_NORESPAWN flag from m_spawnflags datamap
+	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
 }
 
 bool IsWeaponDroppable(const char[] classname)
