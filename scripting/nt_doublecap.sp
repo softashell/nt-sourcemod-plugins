@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <neotokyo>
-#define DEBUG 1
+#define DEBUG 0
 #pragma newdecls required
 
 public Plugin myinfo =
