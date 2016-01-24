@@ -7,7 +7,7 @@
 #pragma newdecls required
 
 #define DEBUG 0
-#define MAXCAPZONES 4
+#define MAXCAPZONES 6
 #define INACCURACY 0.35
 
 #define PLUGIN_VERSION	"1.5.8"
@@ -67,7 +67,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(StrEqual(classname, "weapon_ghost"))
 	{
-		ghost = EntIndexToEntRef(entity);
+		//ghost = EntIndexToEntRef(entity); //not needed?
+		ghost = entity;
 
 		PushOnGhostSpawn(ghost);
 	}
