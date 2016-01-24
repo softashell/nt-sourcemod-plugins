@@ -37,7 +37,6 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 		#endif 
 		
 		TriggerTimer(KillGhostTimer);
-		KillGhostTimer = INVALID_HANDLE;
 	}
 	else
 	{
@@ -93,13 +92,19 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 public Action timer_RemoveGhost(Handle timer)
 {
 	if(!IsValidEntity(ghost))
-		return;
+	{
+		KillGhostTimer = INVALID_HANDLE;
+		return Plugin_Handled;
+	}
 	
 	char classname[50];
 	GetEntityClassname(ghost, classname, sizeof(classname));
 	
 	if(!StrEqual(classname, "weapon_ghost"))
-		return;
+	{
+		KillGhostTimer = INVALID_HANDLE;
+		return Plugin_Handled;
+	}
 
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
@@ -130,6 +135,8 @@ public Action timer_RemoveGhost(Handle timer)
 	}
 	
 	KillGhostTimer = INVALID_HANDLE;
+	
+	return Plugin_Handled;
 }
 
 
@@ -137,7 +144,7 @@ public void OnGhostSpawn(int entity)
 {
 	// Save current ghost id for later use
 	ghost = entity;
-
+	
 	#if DEBUG > 0
 	PrintToServer("Ghost %i spawned", ghost);
 	#endif
@@ -176,4 +183,9 @@ void RemoveGhost(int client)
 	// Delete ghost
 	if(IsValidEdict(ghost))
 		RemoveEdict(ghost);
+}
+
+public void OnMapEnd()
+{
+	KillGhostTimer = INVALID_HANDLE;
 }
