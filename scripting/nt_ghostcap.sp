@@ -67,8 +67,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(StrEqual(classname, "weapon_ghost"))
 	{
-		//ghost = EntIndexToEntRef(entity); //not needed?
-		ghost = entity;
+		ghost = EntIndexToEntRef(entity);
 
 		PushOnGhostSpawn(ghost);
 	}
