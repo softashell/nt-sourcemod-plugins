@@ -2,6 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <neotokyo>
+#define PLUGIN_VERSION "0.42"
 #define DEBUG 0
 #pragma newdecls required
 
@@ -10,7 +11,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL, glub",
     description = "Removes ghost as soon as it's captured, or when round ended",
-    version = "0.4",
+    version = PLUGIN_VERSION,
     url = ""
 };
 
@@ -21,6 +22,7 @@ int carrier;
 
 public void OnPluginStart()
 {
+	CreateConVar("nt_doublecap_version", PLUGIN_VERSION, "Neotokyo anti double cap plugin", FCVAR_PLUGIN | FCVAR_SPONLY | FCVAR_REPLICATED);
 	HookEvent("game_round_end", OnRoundEnd);
 	HookEvent("game_round_start", OnRoundStart); //needs start in case we foce restart
 	
@@ -40,9 +42,10 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 	}
 	else
 	{
+		//note: this might be not needed. 1) we should already have a timer doing this 2) this could cause problems if it overlaps		
 		#if DEBUG > 0
-		PrintToChatAll("OnRoundEnd: trying to remove ghost!");
-		PrintToServer("OnRoundEnd: trying to remove ghost!");
+		PrintToChatAll("OnRoundEnd: There was no timer!!? Trying to remove ghost");
+		PrintToServer("OnRoundEnd: There was no timer!!? Trying to remove ghost");
 		#endif
 		
 		if(!IsValidEntity(ghost))
@@ -91,9 +94,10 @@ public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 
 public Action timer_RemoveGhost(Handle timer)
 {
+	KillGhostTimer = INVALID_HANDLE;
+	
 	if(!IsValidEntity(ghost))
 	{
-		KillGhostTimer = INVALID_HANDLE;
 		return Plugin_Handled;
 	}
 	
@@ -102,7 +106,6 @@ public Action timer_RemoveGhost(Handle timer)
 	
 	if(!StrEqual(classname, "weapon_ghost"))
 	{
-		KillGhostTimer = INVALID_HANDLE;
 		return Plugin_Handled;
 	}
 
@@ -133,8 +136,6 @@ public Action timer_RemoveGhost(Handle timer)
 			RemoveEdict(ghost);
 		}
 	}
-	
-	KillGhostTimer = INVALID_HANDLE;
 	
 	return Plugin_Handled;
 }
@@ -187,5 +188,6 @@ void RemoveGhost(int client)
 
 public void OnMapEnd()
 {
-	KillGhostTimer = INVALID_HANDLE;
+	if(KillGhostTimer != INVALID_HANDLE)
+		KillGhostTimer = INVALID_HANDLE;
 }
