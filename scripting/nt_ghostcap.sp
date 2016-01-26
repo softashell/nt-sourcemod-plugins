@@ -10,7 +10,7 @@
 #define MAXCAPZONES 6
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.5.8"
+#define PLUGIN_VERSION	"1.5.9"
 
 public Plugin myinfo =
 {
@@ -21,10 +21,10 @@ public Plugin myinfo =
 	url = ""
 };
 
-Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn;
+Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn, g_hForwardPickedUp, g_hForwardDropped;
 
 // Globals
-int ghost, totalCapzones;
+int ghost, totalCapzones, lastCarrier;
 bool roundReset = true;
 float fStartRoundTime;
 
@@ -32,6 +32,7 @@ float fStartRoundTime;
 int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
 float capzoneVector[MAXCAPZONES+1][3];
 bool capzoneDataUpdated[MAXCAPZONES+1];
+bool g_bGhostIsHeld;
 
 public void OnPluginStart()
 {
@@ -41,6 +42,8 @@ public void OnPluginStart()
 
 	g_hForwardCapture = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
 	g_hForwardSpawn = CreateGlobalForward("OnGhostSpawn", ET_Event, Param_Cell);
+	g_hForwardPickedUp = CreateGlobalForward("OnGhostPickedUp", ET_Event, Param_Cell);
+	g_hForwardDropped = CreateGlobalForward("OnGhostDropped", ET_Event, Param_Cell);
 
 	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
 
@@ -53,6 +56,7 @@ public void OnMapEnd()
 	PrintToServer("[nt_ghostcap] Map ended, resetting everything and marking zones for update");
 	#endif
 
+	g_bGhostIsHeld = false;
 	totalCapzones = 0;
 	roundReset = true;
 
@@ -86,6 +90,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
+	g_bGhostIsHeld = false;
 	fStartRoundTime = GetGameTime();
 
 	if(!totalCapzones)
@@ -130,10 +135,20 @@ public Action CheckGhostPosition(Handle timer)
 	float ghostVector[3], distance;
 
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
-
+	
 	if(!IsValidClient(carrier) || !IsPlayerAlive(carrier))
+	{
+		g_bGhostIsHeld = false;
+		UpdateGhostPickedUpStatus();
 		return;
-
+	}
+	else
+	{
+		lastCarrier = carrier;
+		g_bGhostIsHeld = true;
+		UpdateGhostPickedUpStatus();
+	}
+	
 	carrierTeamID = GetClientTeam(carrier);
 	GetClientAbsOrigin(carrier, ghostVector);
 
@@ -162,9 +177,45 @@ public Action CheckGhostPosition(Handle timer)
 
 			LogGhostCapture(carrier, carrierTeamID);
 
-			 //We're done here, no point in continuing loop
+			//We're done here, no point in continuing loop
 			break;
 		}
+	}
+}
+
+
+void UpdateGhostPickedUpStatus()
+{
+	static int icounter;
+
+	if(g_bGhostIsHeld)
+	{
+		if(icounter <= -1)
+			icounter += 2;
+		else
+			icounter += 1;
+	}
+	else if(!g_bGhostIsHeld)
+	{
+		if(icounter >= 1)
+			icounter -= 2;
+		else
+			icounter -= 1;
+	}
+	
+	if(icounter > 2)
+		icounter -= 1;
+	if(icounter < -2)
+		icounter += 1;
+	
+
+	if(icounter == 1)
+	{
+		PushOnGhostPickup(lastCarrier);
+	}
+	else if(icounter == -1)
+	{		
+		PushOnGhostDropped(lastCarrier);
 	}
 }
 
@@ -235,7 +286,7 @@ void LogGhostCapture(int client, int team)
 void PushOnGhostCapture(int client)
 {
 	#if DEBUG > 0
-	PrintToServer("[nt_ghostcap] Ghost captured by %N (%d)! Pushing OnGhostCapture forward", client, client);
+	PrintToServer("[nt_ghostcap] Ghost captured by (%d)! Pushing OnGhostCapture forward", client);
 	#endif
 
 	Call_StartForward(g_hForwardCapture);
@@ -251,5 +302,32 @@ void PushOnGhostSpawn(int entity)
 
 	Call_StartForward(g_hForwardSpawn);
 	Call_PushCell(entity);
+	Call_Finish();
+}
+
+void PushOnGhostPickup(int client)
+{
+	if(client < 1 || client > MaxClients)
+		return;
+	
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost picked up by %N (%d)! Pushing OnGhostPickedUp forward", client, client);
+	#endif
+
+	Call_StartForward(g_hForwardPickedUp);
+	Call_PushCell(client);
+	Call_Finish();
+}
+void PushOnGhostDropped(int client)
+{
+	if(client < 1 || client > MaxClients)
+		return;
+	
+	#if DEBUG > 0
+	PrintToServer("[nt_ghostcap] Ghost dropped by %N (%d)! Pushing OnGhostDropped forward", client, client);
+	#endif
+	
+	Call_StartForward(g_hForwardDropped);
+	Call_PushCell(client);
 	Call_Finish();
 }
