@@ -10,7 +10,7 @@
 #define MAXCAPZONES 6
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.5.9"
+#define PLUGIN_VERSION	"1.6"
 
 public Plugin myinfo =
 {
