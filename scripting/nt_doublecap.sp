@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <neotokyo>
-#define PLUGIN_VERSION "0.42"
+#define PLUGIN_VERSION "0.43"
 #define DEBUG 0
 #pragma newdecls required
 
@@ -15,10 +15,9 @@ public Plugin myinfo =
     url = ""
 };
 
-int ghost;
+int ghost, carrier;
 Handle convar_roundtimelimit = INVALID_HANDLE;
 Handle KillGhostTimer = INVALID_HANDLE;
-int carrier;
 
 public void OnPluginStart()
 {
@@ -35,53 +34,12 @@ public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
 	if(KillGhostTimer != INVALID_HANDLE)
 	{
 		#if DEBUG > 0
-		PrintToServer("OnRoundEnd: trigerring timer!");
+		PrintToServer("OnRoundEnd: killing timer!");
 		#endif 
 		
-		TriggerTimer(KillGhostTimer);
+		//TriggerTimer(KillGhostTimer);	//not needed and could be dangerous
+		KillTimer(KillGhostTimer);		//just kill and let the engine clean up entities itself
 	}
-	else
-	{
-		//note: this might be not needed. 1) we should already have a timer doing this 2) this could cause problems if it overlaps		
-		#if DEBUG > 0
-		PrintToChatAll("OnRoundEnd: There was no timer!!? Trying to remove ghost");
-		PrintToServer("OnRoundEnd: There was no timer!!? Trying to remove ghost");
-		#endif
-		
-		if(!IsValidEntity(ghost))
-			return;
-		
-		char classname[50];
-		GetEntityClassname(ghost, classname, sizeof(classname));
-		
-		if(!StrEqual(classname, "weapon_ghost"))
-			return;
-		
-		carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
-		
-		if((MaxClients > carrier > 0) && IsPlayerAlive(carrier))
-		{
-			#if DEBUG > 0
-			PrintToChatAll("OnRoundEnd: removed ghost from carrier %i!", carrier);
-			PrintToServer("OnRoundEnd: removed ghost from carrier %i!", carrier);
-			#endif
-			
-			RemoveGhost(carrier);
-		}
-		else
-		{
-			if(IsValidEdict(ghost))
-			{
-				#if DEBUG > 0
-				PrintToChatAll("OnRoundEnd: removed ghost %i classname %s!", ghost, classname);
-				PrintToServer("OnRoundEnd: removed ghost %i classname %s!", ghost, classname);
-				#endif
-				
-				RemoveEdict(ghost);
-			}
-		}
-	}
-
 }
 
 public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
@@ -108,18 +66,17 @@ public Action timer_RemoveGhost(Handle timer)
 	{
 		return Plugin_Handled;
 	}
-
-
+	
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 	
 	#if DEBUG > 0
-	PrintToChatAll("Timer: carrier = %i", carrier);
+	PrintToServer("Timer: carrier = %i", carrier);
 	#endif
 	
 	if((MaxClients > carrier > 0) && IsPlayerAlive(carrier))
 	{
 		#if DEBUG > 0
-		PrintToChatAll("Timer: removed ghost from carrier %i!", carrier);
+		PrintToServer("Timer: removed ghost from carrier %i!", carrier);
 		#endif
 		
 		RemoveGhost(carrier);
@@ -129,7 +86,6 @@ public Action timer_RemoveGhost(Handle timer)
 		if(IsValidEdict(ghost))
 		{
 			#if DEBUG > 0
-			PrintToChatAll("Timer: removed ghost %i classname %s!", ghost, classname);
 			PrintToServer("Timer: removed ghost %i classname %s!", ghost, classname);
 			#endif
 			
