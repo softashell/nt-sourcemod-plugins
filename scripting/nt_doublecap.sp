@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <neotokyo>
-#define PLUGIN_VERSION "0.43"
+#define PLUGIN_VERSION "0.44"
 #define DEBUG 0
 #pragma newdecls required
 
@@ -22,24 +22,9 @@ Handle KillGhostTimer = INVALID_HANDLE;
 public void OnPluginStart()
 {
 	CreateConVar("nt_doublecap_version", PLUGIN_VERSION, "Neotokyo anti double cap plugin", FCVAR_PLUGIN | FCVAR_SPONLY | FCVAR_REPLICATED);
-	HookEvent("game_round_end", OnRoundEnd);
 	HookEvent("game_round_start", OnRoundStart); //needs start in case we foce restart
 	
 	convar_roundtimelimit = FindConVar("neo_round_timelimit");
-}
-
-
-public Action OnRoundEnd(Handle event, const char[] name, bool dontBroadcast)
-{
-	if(KillGhostTimer != INVALID_HANDLE)
-	{
-		#if DEBUG > 0
-		PrintToServer("OnRoundEnd: killing timer!");
-		#endif 
-		
-		//TriggerTimer(KillGhostTimer);	//not needed and could be dangerous
-		KillTimer(KillGhostTimer);		//just kill and let the engine clean up entities itself
-	}
 }
 
 public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
