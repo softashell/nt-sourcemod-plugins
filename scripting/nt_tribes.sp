@@ -36,7 +36,7 @@ public Plugin:myinfo =
     name = "TRIBESTOKYO°",
     author = "soft as HELL",
     description = "fun allowed",
-    version = "1.2",
+    version = "1.3",
     url = ""
 };
 
