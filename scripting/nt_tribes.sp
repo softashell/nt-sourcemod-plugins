@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate;
+new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate, Handle:hLimitMaps;
 
 new bool:bFreezeTime, bDuel;
 
@@ -24,6 +24,13 @@ new const String:gPainSounds[][] =
 	"player/pl_pain7.wav"
 };
 
+new const String:gAllowedMaps[][] =
+{
+	"nt_decom_ctg",
+	"nt_isolation_ctg",
+	"nt_vtol_ctg"
+};
+
 public Plugin:myinfo =
 {
     name = "TRIBESTOKYO°",
@@ -37,6 +44,7 @@ public OnPluginStart()
 {
 	// Get cvar handles
 	hEnabled = CreateConVar("sm_nt_tribes", "0", "Enable shitty game mode");
+	hLimitMaps = CreateConVar("sm_nt_tribes_limit_maps", "1", "Limit mode availability to vtol, isolation and decom", _, true, 0.0, true, 1.0);
 	hFriction = FindConVar("sv_friction");
 	hAirAccelerate = FindConVar("sv_airaccelerate");
 	hAccelerate = FindConVar("sv_accelerate");
@@ -88,20 +96,35 @@ public OnAutoConfigsBuffered() {
 
 public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
+	decl String:currentMap[64];
+	GetCurrentMap(currentMap, 64);
+	
+	if (GetConVarBool(hLimitMaps))
+	{
+		new bool:isMapAllowed;
+		for (new i = 0; i < sizeof(gAllowedMaps); i++)
+		{
+			if (StrEqual(currentMap, gAllowedMaps[i]))
+			{
+				isMapAllowed = true;
+				break;
+			}
+		}
+		
+		if (!isMapAllowed)
+		{
+			SetConVarBool(hEnabled, false);
+			PrintToChatAll("TribesTokyo is disabled on this map. Sorry folks.");
+			return;
+		}
+	}
+	
 	// Set server cvars when sm_nt_tribes is changed
 	if (StringToInt(newVal) >= 1)
 	{
 		SetConVarFloat(hFriction, 0.0);
 		SetConVarInt(hAirAccelerate, 1000);
 		SetConVarInt(hAccelerate, 1000);
-		
-		decl String:currentMap[64];
-		GetCurrentMap(currentMap, 64);
-		if(!StrEqual(currentMap, "nt_vtol_ctg") || !StrEqual(currentMap, "nt_isolation_ctg") || !StrEqual(currentMap, "nt_decom_ctg"))
-		{
-			SetConVarInt(hEnabled, 0);
-			PrintToChatAll("TribesTokyo is disabled on this map. Sorry folks.");
-		}
 	}
 	else
 	{
@@ -109,7 +132,6 @@ public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 		SetConVarInt(hAirAccelerate, 10);
 		SetConVarInt(hAccelerate, 10);
 	}
-
 }
 
 public Action:cmd_handler(client, const String:command[], args)
