@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate, Handle:hLimitMaps;
+new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate, Handle:hLimitMaps, Handle:hAutoEnableOnVtol;
 
 new bool:bFreezeTime, bDuel;
 
@@ -45,6 +45,7 @@ public OnPluginStart()
 	// Get cvar handles
 	hEnabled = CreateConVar("sm_nt_tribes", "0", "Enable shitty game mode");
 	hLimitMaps = CreateConVar("sm_nt_tribes_limit_maps", "1", "Limit mode availability to vtol, isolation and decom", _, true, 0.0, true, 1.0);
+	hAutoEnableOnVtol = CreateConVar("sm_nt_tribes_vtol_autoenable", "1", "Automatically enable plugin on vtol", _, true, 0.0, true, 1.0);
 	hFriction = FindConVar("sv_friction");
 	hAirAccelerate = FindConVar("sv_airaccelerate");
 	hAccelerate = FindConVar("sv_accelerate");
@@ -76,7 +77,7 @@ public OnAutoConfigsBuffered() {
 	GetCurrentMap(currentMap, 64);
 
 	// if current map is vtol automatically enable plugin
-	if(StrEqual(currentMap, "nt_vtol_ctg"))
+	if (GetConVarBool(hAutoEnableOnVtol) && StrEqual(currentMap, "nt_vtol_ctg"))
 		SetConVarInt(hEnabled, 1);
 	else
 		SetConVarInt(hEnabled, 0);
