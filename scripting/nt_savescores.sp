@@ -6,16 +6,17 @@
 public Plugin:myinfo =
 {
     name = "NEOTOKYO° Temporary score saver",
-    author = "soft as HELL",
+    author = "soft as HELL, glub",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.3",
-    url = "https://github.com/softashell/nt-sourcemod-plugins"
+    version = "0.4",
+    url = "https://github.com/glubsy"
 };
 
-new Handle:hDB, Handle:hRestartGame, Handle:hResetScoresTimer;
-new bool:bScoreLoaded[MAXPLAYERS+1], bool:bResetScores;
-new bool:g_bHasJoinedATeam[MAXPLAYERS+1];
-new Handle:nt_savescore_database;
+Handle hDB, hRestartGame, hResetScoresTimer;
+bool bScoreLoaded[MAXPLAYERS+1], bResetScores;
+bool g_bHasJoinedATeam[MAXPLAYERS+1];
+Handle nt_savescore_database = INVALID_HANDLE;
+Handle g_hForwardLoadedSavedScore = INVALID_HANDLE;
 
 public OnPluginStart()
 {
@@ -30,6 +31,8 @@ public OnPluginStart()
 	AddCommandListener(cmd_JoinTeam, "jointeam");
 
 	HookEvent("game_round_start", event_RoundStart);
+
+	g_hForwardLoadedSavedScore = CreateGlobalForward("OnSavedScoreLoaded", ET_Event, Param_Cell, Param_Cell);
 
 	bResetScores = false;
 }
@@ -58,20 +61,20 @@ public RestartGame(Handle:convar, const String:oldValue[], const String:newValue
 	hResetScoresTimer = CreateTimer(fTimer - 0.1, ResetScoresNextRound);
 }
 
-public Action:ResetScoresNextRound(Handle:timer)
+public Action ResetScoresNextRound(Handle timer)
 {
 	bResetScores = true;
 
 	hResetScoresTimer = INVALID_HANDLE;
 }
 
-public OnClientPutInServer(client)
+public OnClientPutInServer(int client)
 {
 	g_bHasJoinedATeam[client] = false;
 }
 
 
-public OnClientDisconnect(client)
+public OnClientDisconnect(int client)
 {
 	if(!bScoreLoaded[client] && !g_bHasJoinedATeam[client])
 		return; // Never tried to load score
@@ -81,7 +84,7 @@ public OnClientDisconnect(client)
 	bScoreLoaded[client] = false;
 }
 
-public Action:cmd_JoinTeam(client, const String:command[], args)
+public Action cmd_JoinTeam(int client, const char[] command, args)
 { 
 	decl String:cmd[3];
 	GetCmdArgString(cmd, sizeof(cmd));
@@ -105,7 +108,7 @@ public Action:cmd_JoinTeam(client, const String:command[], args)
 	g_bHasJoinedATeam[client] = true;
 }
 
-public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!bResetScores)
 		return;
@@ -143,7 +146,7 @@ DB_clear()
 	SQL_UnlockDatabase(hDB);
 }
 
-DB_insertScore(client)
+DB_insertScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
@@ -161,7 +164,7 @@ DB_insertScore(client)
 	SQL_FastQuery(hDB, query);
 }
 
-DB_deleteScore(client)
+DB_deleteScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
@@ -175,7 +178,7 @@ DB_deleteScore(client)
 	SQL_FastQuery(hDB, query);
 }
 
-DB_retrieveScore(client)
+DB_retrieveScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
@@ -205,8 +208,8 @@ public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[],
 	if (SQL_GetRowCount(hndl) == 0)
 		return;
 
-	new xp = SQL_FetchInt(hndl, 1);
-	new deaths = SQL_FetchInt(hndl, 2);
+	int xp = SQL_FetchInt(hndl, 1);
+	int deaths = SQL_FetchInt(hndl, 2);
 
 	if(xp != 0 || deaths != 0)
 	{
@@ -214,9 +217,20 @@ public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[],
 		SetPlayerDeaths(client, deaths);
 	}
 
+	PushOnLoadedSavedScoreForward(client, xp); //forwarding XP restored to other plugins
+
 	PrintToChat(client, "[NT°] Saved score restored!");
 	PrintToConsole(client, "[NT°] Saved score restored! XP: %d Deaths: %d", xp, deaths);
 
 	// Remove score from DB after it has been loaded
 	DB_deleteScore(client);
+}
+
+
+void PushOnLoadedSavedScoreForward(int client, int loadedscore)
+{
+	Call_StartForward(g_hForwardLoadedSavedScore);
+	Call_PushCell(client);
+	Call_PushCell(loadedscore);
+	Call_Finish();
 }
