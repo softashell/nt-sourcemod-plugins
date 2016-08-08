@@ -5,7 +5,7 @@
 #include <sdkhooks>
 #include <neotokyo>
 
-new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate;
+new Handle:hEnabled, Handle:hFriction, Handle:hAirAccelerate, Handle:hAccelerate, Handle:hLimitMaps, Handle:hAutoEnableOnVtol;
 
 new bool:bFreezeTime, bDuel;
 
@@ -24,12 +24,19 @@ new const String:gPainSounds[][] =
 	"player/pl_pain7.wav"
 };
 
+new const String:gAllowedMaps[][] =
+{
+	"nt_decom_ctg",
+	"nt_isolation_ctg",
+	"nt_vtol_ctg"
+};
+
 public Plugin:myinfo =
 {
     name = "TRIBESTOKYO°",
     author = "soft as HELL",
     description = "fun allowed",
-    version = "1.2",
+    version = "1.3",
     url = ""
 };
 
@@ -37,6 +44,8 @@ public OnPluginStart()
 {
 	// Get cvar handles
 	hEnabled = CreateConVar("sm_nt_tribes", "0", "Enable shitty game mode");
+	hLimitMaps = CreateConVar("sm_nt_tribes_limit_maps", "1", "Limit mode availability to vtol, isolation and decom", _, true, 0.0, true, 1.0);
+	hAutoEnableOnVtol = CreateConVar("sm_nt_tribes_vtol_autoenable", "1", "Automatically enable plugin on vtol", _, true, 0.0, true, 1.0);
 	hFriction = FindConVar("sv_friction");
 	hAirAccelerate = FindConVar("sv_airaccelerate");
 	hAccelerate = FindConVar("sv_accelerate");
@@ -68,7 +77,7 @@ public OnAutoConfigsBuffered() {
 	GetCurrentMap(currentMap, 64);
 
 	// if current map is vtol automatically enable plugin
-	if(StrEqual(currentMap, "nt_vtol_ctg"))
+	if (GetConVarBool(hAutoEnableOnVtol) && StrEqual(currentMap, "nt_vtol_ctg"))
 		SetConVarInt(hEnabled, 1);
 	else
 		SetConVarInt(hEnabled, 0);
@@ -88,6 +97,29 @@ public OnAutoConfigsBuffered() {
 
 public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
+	decl String:currentMap[64];
+	GetCurrentMap(currentMap, 64);
+	
+	if (GetConVarBool(hLimitMaps))
+	{
+		new bool:isMapAllowed;
+		for (new i = 0; i < sizeof(gAllowedMaps); i++)
+		{
+			if (StrEqual(currentMap, gAllowedMaps[i]))
+			{
+				isMapAllowed = true;
+				break;
+			}
+		}
+		
+		if (!isMapAllowed)
+		{
+			SetConVarBool(hEnabled, false);
+			PrintToChatAll("TribesTokyo is disabled on this map. Sorry folks.");
+			return;
+		}
+	}
+	
 	// Set server cvars when sm_nt_tribes is changed
 	if (StringToInt(newVal) >= 1)
 	{
@@ -101,7 +133,6 @@ public toggle_plugin(Handle:cvar, const String:oldVal[], const String:newVal[])
 		SetConVarInt(hAirAccelerate, 10);
 		SetConVarInt(hAccelerate, 10);
 	}
-
 }
 
 public Action:cmd_handler(client, const String:command[], args)
