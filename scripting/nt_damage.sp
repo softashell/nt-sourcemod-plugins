@@ -9,13 +9,14 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.6.1",
+    version = "0.7.0",
     url = ""
 };
 
 new Handle:g_hRewardAssists, Handle:g_hAssistDamage, Handle:g_hAssistPoints, Handle:g_hAssistMode;
 
 new bool:g_SeenReport[MAXPLAYERS+1];
+new g_Class[MAXPLAYERS+1];
 
 new g_PlayerHealth[MAXPLAYERS+1];
 new g_PlayerAssist[MAXPLAYERS+1];
@@ -25,6 +26,13 @@ new g_HitsMade[MAXPLAYERS+1][MAXPLAYERS+1];
 
 new g_DamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 new g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
+
+char class_names[][] = {
+	"Unassigned",
+	"Recon",
+	"Assault",
+	"Support"
+};
 
 public OnPluginStart()
 {
@@ -60,6 +68,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		// Resets everything
 		g_SeenReport[client] = false;
 		g_PlayerHealth[client] = 100;
+		g_Class[client] = CLASS_NONE;
 
 		for(new victim = 1; victim <= MaxClients; victim++)
 		{
@@ -87,6 +96,9 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 
 	if(!IsValidClient(attacker) || (victim == attacker))
 		return;
+
+	if(g_Class[victim] == CLASS_NONE)
+		g_Class[victim] = GetPlayerClass(victim);
 	
 	g_DamageDealt[attacker][victim] += damage;
 	g_HitsMade[attacker][victim] += 1;
@@ -121,7 +133,7 @@ DamageReport(client)
 			if(!IsValidClient(victim))
 				continue;
 
-			PrintToConsole(client, "Damage dealt to %N: %i in %i hits", victim, g_DamageDealt[client][victim], g_HitsMade[client][victim]);
+			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_Class[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
 
 			totalDamageDealt += g_DamageDealt[client][victim];
 			totalHitsDealt   += g_HitsMade[client][victim];
@@ -135,7 +147,7 @@ DamageReport(client)
 
 		if((g_DamageTaken[client][attacker] > 0) && (g_HitsTaken[client][attacker] > 0))
 		{
-			PrintToConsole(client, "Damage taken from %N: %i in %i hits", attacker, g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
+			PrintToConsole(client, "Damage taken from %N [%s]: %i in %i hits", attacker, class_names[g_Class[attacker]], g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
 
 			totalDamageTaken += g_DamageTaken[client][attacker];
 			totalHitsTaken	 += g_HitsTaken[client][attacker];
