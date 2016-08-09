@@ -9,12 +9,12 @@
 #define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
-public Plugin myinfo = 
+public Plugin myinfo =
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.0",
+	version = "0.7.1",
 	url = ""
 }
 
@@ -85,20 +85,17 @@ public Action OnWeaponTouch(int weapon, int client)
 			PrintToChat(client, "OnWeaponTouch: Picking up %s [%d] ammo from %s [%d]", classname, currentweapon, classname2, weapon);
 			#endif
 
-			return Plugin_Handled; // Doesn't block it! ;-;
+			return Plugin_Handled;
 		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
-public void OnWeaponEquip(int client, int weapon) 
-{ 
+public void OnWeaponEquip(int client, int weapon)
+{
 	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
 		return;
-
-	// Remove current hook
-	SDKUnhook(weapon, SDKHook_StartTouch, OnWeaponTouch);
 
 	char classname[32];
 	if(!GetEntityClassname(weapon, classname, sizeof(classname)))
@@ -113,7 +110,7 @@ public void OnWeaponEquip(int client, int weapon)
 
 	if(ammo < 0)
 		return; // Weapon wasn't dropped
-	
+
 	// Remove secondary ammo
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", -1);
 
@@ -169,11 +166,11 @@ public void OnWeaponDrop(int client, int weapon)
 		SetWeaponAmmo(client, ammotype, new_ammo);
 	}
 
-	SDKHook(weapon, SDKHook_StartTouch, OnWeaponTouch);
+	SDKHook(weapon, SDKHook_Touch, OnWeaponTouch);
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons)
-{	
+{
 	if(buttons & IN_USE)
 	{
 		// Get the entity a client is aiming at
@@ -231,7 +228,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 				// Press toss button once
 				buttons |= IN_TOSS; // If only SDKHooks_DropWeapon(client, currentweapon) worked
-				
+
 				// Set swap time to block weapon pickup from touch
 				g_fLastWeaponSwap[client] = GetGameTime();
 			}
@@ -254,6 +251,9 @@ public Action TakeWeapon(Handle timer, Handle pack)
 
 	int client = ReadPackCell(pack);
 	int weapon = ReadPackCell(pack);
+
+	if(!IsValidEdict(weapon))
+		return;
 
 	// Equip weapon
 	EquipPlayerWeapon(client, weapon);
