@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.1",
+	version = "0.7.2",
 	url = ""
 }
 
@@ -40,6 +40,12 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 		}
 	}
+	#if DEBUG > 0
+	RegConsoleCmd("sm_wipe", 	 CommandWipe);
+	#endif
+
+	// Clean up dead weapons
+	CreateTimer(60.0, WipeDeadWeapons, _, TIMER_REPEAT);
 }
 
 public void OnClientPutInServer(int client)
@@ -118,8 +124,8 @@ public void OnWeaponEquip(int client, int weapon)
 	SetWeaponAmmo(client, ammotype, current_ammo + ammo);
 
 	#if DEBUG > 0
-	PrintToServer("[nt_drop] %N (%d) picked up %s with %d ammo", client, client, classname, ammo);
-	PrintToChat(client, "picked up %s with %d ammo", classname, ammo);
+	PrintToServer("[nt_drop] %N (%d) picked up %d %s with %d ammo", client, client, weapon, classname, ammo);
+	PrintToChat(client, "picked up %d %s with %d ammo", weapon, classname, ammo);
 	#endif
 }
 
@@ -135,19 +141,19 @@ public void OnWeaponDrop(int client, int weapon)
 	if(!IsWeaponDroppable(classname))
 		return;
 
-	// Convert index to entity reference
-	weapon = EntIndexToEntRef(weapon);
-
 	int ammotype = GetAmmoType(weapon);
 	int ammo = GetWeaponAmmo(client, ammotype);
 
 	#if DEBUG > 0
-	PrintToServer("[nt_drop] %N (%d) dropped weapon: %s with %d ammo", client, client, classname, ammo);
-	PrintToChat(client, "dropped %s with %d ammo", classname, ammo);
+	PrintToServer("[nt_drop] %N (%d) dropped weapon: %d %s with %d ammo", client, client, weapon, classname, ammo);
+	PrintToChat(client, "dropped %d %s with %d ammo", weapon, classname, ammo);
 	#endif
 
 	// Store ammo as secondary on weapon since it isn't used for anything
 	SetEntProp(weapon, Prop_Data, "m_iSecondaryAmmoCount", ammo);
+
+	// Convert index to entity reference
+	weapon = EntIndexToEntRef(weapon);
 
 	// Have to delay spawnflag setting for a bit
 	CreateTimer(0.1, ChangeSpawnFlags, weapon);
@@ -290,3 +296,55 @@ bool IsWeaponDroppable(const char[] classname)
 
 	return true;
 }
+
+public Action WipeDeadWeapons(Handle timer)
+{
+	#if DEBUG > 0
+	int removed;
+	#endif
+
+	char classname[64];
+
+	for (int i = MAXPLAYERS+1; i < 2048; i++)
+	{
+		if (IsValidEntity(i))
+		{
+			GetEntityClassname(i, classname, sizeof(classname));
+
+			if (StrContains(classname, "weapon_") != -1)
+			{
+				int fEffects = GetEntProp(i, Prop_Data, "m_fEffects");
+				if(fEffects & EF_NODRAW)
+				{
+					// Player weapons aren't drawn until you have switched to them at least once, avoid removing them by checking for no valid owner
+					int owner = GetEntPropEnt(i, Prop_Data, "m_hOwnerEntity");
+
+					if(owner != -1)
+						continue;
+
+
+
+					AcceptEntityInput(i, "Kill");
+
+					#if DEBUG > 0
+					PrintToServer("Removing %d %s", i, classname);
+					removed++;
+					#endif
+				}
+			}
+		}
+	}
+
+	#if DEBUG > 0
+	PrintToServer("Removed %d dead weapons", removed);
+	#endif
+}
+
+#if DEBUG > 0
+public Action CommandWipe(int client, int args)
+{
+	WipeDeadWeapons(INVALID_HANDLE);
+
+	return Plugin_Handled;
+}
+#endif
