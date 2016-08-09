@@ -130,8 +130,8 @@ DamageReport(client)
 
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
-			if(g_Class[attacker] == CLASS_NONE)
-				g_Class[attacker] = GetPlayerClass(attacker);
+			if(g_Class[victim] == CLASS_NONE)
+				g_Class[victim] = GetPlayerClass(victim);
 
 			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_Class[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
 
