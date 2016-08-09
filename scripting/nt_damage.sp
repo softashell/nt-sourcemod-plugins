@@ -9,7 +9,7 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.0",
+    version = "0.7.1",
     url = ""
 };
 
@@ -55,7 +55,7 @@ public OnClientPutInServer(client)
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client;
-	
+
 	for(client = 1; client <= MaxClients; client++)
 	{
 		// Shows damage report now if player didn't die
@@ -78,7 +78,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 			g_DamageTaken[client][victim] = 0;
 			g_HitsTaken[client][victim] = 0;
 		}
-	}	
+	}
 }
 
 public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
@@ -87,19 +87,16 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
 	new health = GetEventInt(event, "health"); // Only reports new health
-	
+
 	// Calculate damage
 	new damage = g_PlayerHealth[victim] - health;
-	
+
 	// Update current health
 	g_PlayerHealth[victim] = health;
 
 	if(!IsValidClient(attacker) || (victim == attacker))
 		return;
 
-	if(g_Class[victim] == CLASS_NONE)
-		g_Class[victim] = GetPlayerClass(victim);
-	
 	g_DamageDealt[attacker][victim] += damage;
 	g_HitsMade[attacker][victim] += 1;
 
@@ -128,10 +125,13 @@ DamageReport(client)
 	PrintToConsole(client, "------------------------------------------------");
 	for(victim = 1; victim <= MaxClients; victim++)
 	{
+		if(!IsValidClient(victim))
+			continue;
+
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
-			if(!IsValidClient(victim))
-				continue;
+			if(g_Class[attacker] == CLASS_NONE)
+				g_Class[attacker] = GetPlayerClass(attacker);
 
 			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_Class[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
 
@@ -147,6 +147,9 @@ DamageReport(client)
 
 		if((g_DamageTaken[client][attacker] > 0) && (g_HitsTaken[client][attacker] > 0))
 		{
+			if(g_Class[attacker] == CLASS_NONE)
+				g_Class[attacker] = GetPlayerClass(attacker);
+
 			PrintToConsole(client, "Damage taken from %N [%s]: %i in %i hits", attacker, class_names[g_Class[attacker]], g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
 
 			totalDamageTaken += g_DamageTaken[client][attacker];
@@ -200,7 +203,7 @@ RewardAssists(client, killer, mode)
 				LogKillAssist(attacker);
 			}
 			case 1: // Sums all assisted damage and gives out X points after X damage done
-			{ 
+			{
 				PrintToChat(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
 				PrintToConsole(attacker, "[NT°] You assisted killing %N by doing %i damage", client, damage);
 
@@ -228,7 +231,7 @@ LogKillAssist(client)
 {
 	// Log kill_assist event
 	new userID, String:steamID[64], String:team[18];
-	
+
 	userID = GetClientUserId(client);
 	GetClientAuthId(client, AuthId_Steam2, steamID, 64);
 	GetTeamName(GetClientTeam(client), team, sizeof(team));
