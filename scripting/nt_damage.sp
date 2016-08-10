@@ -1,40 +1,41 @@
-#pragma semicolon 1
-
 #include <sourcemod>
 #include <sdktools>
 #include <neotokyo>
 
-public Plugin:myinfo =
+#pragma semicolon 1
+#pragma newdecls required
+
+public Plugin myinfo =
 {
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.1",
+    version = "0.7.2",
     url = ""
 };
 
-new Handle:g_hRewardAssists, Handle:g_hAssistDamage, Handle:g_hAssistPoints, Handle:g_hAssistMode;
+Handle g_hRewardAssists, g_hAssistDamage, g_hAssistPoints, g_hAssistMode;
 
-new bool:g_SeenReport[MAXPLAYERS+1];
-new g_Class[MAXPLAYERS+1];
+bool g_SeenReport[MAXPLAYERS+1];
+int g_Class[MAXPLAYERS+1];
 
-new g_PlayerHealth[MAXPLAYERS+1];
-new g_PlayerAssist[MAXPLAYERS+1];
+int g_PlayerHealth[MAXPLAYERS+1];
+int g_PlayerAssist[MAXPLAYERS+1];
 
-new g_DamageDealt[MAXPLAYERS+1][MAXPLAYERS+1];
-new g_HitsMade[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_DamageDealt[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_HitsMade[MAXPLAYERS+1][MAXPLAYERS+1];
 
-new g_DamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
-new g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_DamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 
 char class_names[][] = {
-	"Unassigned",
+	"-",
 	"Recon",
 	"Assault",
 	"Support"
 };
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	g_hRewardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
 	g_hAssistMode 	= CreateConVar("sm_ntdamage_assistmode", "0", "Switches assist mode");
@@ -42,19 +43,21 @@ public OnPluginStart()
 	g_hAssistPoints = CreateConVar("sm_ntdamage_points", "1", "Points given for each assist");
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	g_SeenReport[client] = false;
 	g_PlayerAssist[client] = 0;
+	g_Class[client] = CLASS_NONE;
 }
 
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	new client;
+	int client, victim;
 
 	for(client = 1; client <= MaxClients; client++)
 	{
@@ -70,7 +73,7 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 		g_PlayerHealth[client] = 100;
 		g_Class[client] = CLASS_NONE;
 
-		for(new victim = 1; victim <= MaxClients; victim++)
+		for(victim = 1; victim <= MaxClients; victim++)
 		{
 			g_DamageDealt[client][victim] = 0;
 			g_HitsMade[client][victim] = 0;
@@ -81,15 +84,25 @@ public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	}
 }
 
-public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-	new health = GetEventInt(event, "health"); // Only reports new health
+	if(!IsValidClient(client))
+		return;
+
+	g_Class[client] = GetPlayerClass(client);
+}
+
+public Action Event_PlayerHurt(Handle event, const char[] name, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+
+	int health = GetEventInt(event, "health"); // Only reports new health
 
 	// Calculate damage
-	new damage = g_PlayerHealth[victim] - health;
+	int damage = g_PlayerHealth[victim] - health;
 
 	// Update current health
 	g_PlayerHealth[victim] = health;
@@ -104,10 +117,10 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 	g_HitsTaken[victim][attacker] += 1;
 }
 
-public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
 	if(!IsValidClient(victim))
 		return;
@@ -118,9 +131,9 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		RewardAssists(victim, attacker, GetConVarInt(g_hAssistMode));
 }
 
-DamageReport(client)
+void DamageReport(int client)
 {
-	new totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken, victim, attacker;
+	int totalDamageDealt, totalDamageTaken, totalHitsDealt, totalHitsTaken, victim, attacker;
 
 	PrintToConsole(client, "------------------------------------------------");
 	for(victim = 1; victim <= MaxClients; victim++)
@@ -130,9 +143,6 @@ DamageReport(client)
 
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
-			if(g_Class[victim] == CLASS_NONE)
-				g_Class[victim] = GetPlayerClass(victim);
-
 			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_Class[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
 
 			totalDamageDealt += g_DamageDealt[client][victim];
@@ -147,9 +157,6 @@ DamageReport(client)
 
 		if((g_DamageTaken[client][attacker] > 0) && (g_HitsTaken[client][attacker] > 0))
 		{
-			if(g_Class[attacker] == CLASS_NONE)
-				g_Class[attacker] = GetPlayerClass(attacker);
-
 			PrintToConsole(client, "Damage taken from %N [%s]: %i in %i hits", attacker, class_names[g_Class[attacker]], g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
 
 			totalDamageTaken += g_DamageTaken[client][attacker];
@@ -164,12 +171,12 @@ DamageReport(client)
 	g_SeenReport[client] = true;
 }
 
-RewardAssists(client, killer, mode)
+void RewardAssists(int client, int killer, int mode)
 {
-	new damage, hits, attacker;
+	int damage, hits, attacker;
 
-	new target_damage = GetConVarInt(g_hAssistDamage);
-	new reward_points = GetConVarInt(g_hAssistPoints);
+	int target_damage = GetConVarInt(g_hAssistDamage);
+	int reward_points = GetConVarInt(g_hAssistPoints);
 
 	for(attacker = 1; attacker <= MaxClients; attacker++)
 	{
@@ -227,10 +234,11 @@ RewardAssists(client, killer, mode)
 	}
 }
 
-LogKillAssist(client)
+void LogKillAssist(int client)
 {
 	// Log kill_assist event
-	new userID, String:steamID[64], String:team[18];
+	int userID;
+	char steamID[64], team[18];
 
 	userID = GetClientUserId(client);
 	GetClientAuthId(client, AuthId_Steam2, steamID, 64);
@@ -239,7 +247,7 @@ LogKillAssist(client)
 	LogToGame("\"%N<%d><%s><%s>\" triggered \"kill_assist\"", client, userID, steamID, team);
 }
 
-AddPlayerXP(client, xp)
+void AddPlayerXP(int client, int xp)
 {
 	SetPlayerXP(client, GetPlayerXP(client) + xp);
 	UpdatePlayerRank(client);
