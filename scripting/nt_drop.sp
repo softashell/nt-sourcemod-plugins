@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.2",
+	version = "0.7.3",
 	url = ""
 }
 
@@ -50,8 +50,15 @@ public void OnPluginStart()
 
 public void OnClientPutInServer(int client)
 {
+	#if DEBUG > 0
+	PrintToServer("OnClientPutInServer: Hooking and resetting use and swap time for %N (%d)", client, client);
+	#endif
+
 	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
 	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
+
+	g_fLastWeaponUse[client] = 0.0;
+	g_fLastWeaponSwap[client] = 0.0;
 }
 
 public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
@@ -87,8 +94,8 @@ public Action OnWeaponTouch(int weapon, int client)
 		char classname2[32];
 		if(GetEntityClassname(currentweapon, classname2, 32) && StrEqual(classname, classname2))
 		{
-			#if DEBUG > 0
-			PrintToChat(client, "OnWeaponTouch: Picking up %s [%d] ammo from %s [%d]", classname, currentweapon, classname2, weapon);
+			#if DEBUG > 2
+			PrintToChat(client, "OnWeaponTouch: Blocking picking up %s [%d] ammo from %s [%d]", classname, currentweapon, classname2, weapon);
 			#endif
 
 			return Plugin_Handled;
@@ -321,8 +328,6 @@ public Action WipeDeadWeapons(Handle timer)
 
 					if(owner != -1)
 						continue;
-
-
 
 					AcceptEntityInput(i, "Kill");
 
