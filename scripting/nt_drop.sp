@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.3",
+	version = "0.7.4",
 	url = ""
 }
 
@@ -278,6 +278,9 @@ public Action TakeWeapon(Handle timer, Handle pack)
 
 public Action ChangeSpawnFlags(Handle timer, int weapon)
 {
+	if(!IsValidEdict(weapon))
+		return;
+
 	// Prepare spawnflags datamap offset
 	static int spawnflags;
 
