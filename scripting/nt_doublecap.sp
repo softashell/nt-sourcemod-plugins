@@ -1,6 +1,7 @@
 #pragma semicolon 1
 
 #include <sourcemod>
+#include <sdktools>
 #include <neotokyo>
 
 public Plugin:myinfo =
@@ -49,5 +50,7 @@ RemoveGhost(client)
 
 	// Delete ghost
 	if(IsValidEdict(ghost))
-		RemoveEdict(ghost);
+	{
+		AcceptEntityInput(ghost, "Kill");
+	}
 }
