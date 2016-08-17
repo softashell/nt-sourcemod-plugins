@@ -1,31 +1,32 @@
-#pragma semicolon 1
-
 #include <sourcemod>
 #include <neotokyo>
 
-public Plugin:myinfo =
+#pragma semicolon 1
+#pragma newdecls required
+
+public Plugin myinfo =
 {
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.3",
+    version = "0.4",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
-new Handle:hDB, Handle:hRestartGame, Handle:hResetScoresTimer;
-new bool:bScoreLoaded[MAXPLAYERS+1], bool:bResetScores;
-new bool:g_bHasJoinedATeam[MAXPLAYERS+1];
-new Handle:nt_savescore_database;
+Handle hDB, hRestartGame, hResetScoresTimer, hScoreDatabase;
+bool bScoreLoaded[MAXPLAYERS+1],bResetScores, g_bHasJoinedATeam[MAXPLAYERS+1];
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-	nt_savescore_database = CreateConVar("nt_savescore_database", "nt_savescores", "Database filename for saving scores", FCVAR_PLUGIN|FCVAR_PROTECTED);
-	
+	hScoreDatabase = CreateConVar("nt_savescore_database", "nt_savescores", "Database filename for saving scores", FCVAR_PROTECTED);
+
 	hRestartGame = FindConVar("neo_restart_this");
 
 	// Hook restart command
-	if (hRestartGame != INVALID_HANDLE)
+	if(hRestartGame != INVALID_HANDLE)
+	{
 		HookConVarChange(hRestartGame, RestartGame);
+	}
 
 	AddCommandListener(cmd_JoinTeam, "jointeam");
 
@@ -34,18 +35,18 @@ public OnPluginStart()
 	bResetScores = false;
 }
 
-public OnConfigsExecuted()
-{	
+public void OnConfigsExecuted()
+{
 	// Create new database if it doesn't exist
 	DB_init();
 
 	// Clear it if we're reloading plugin or just started it
 	DB_clear();
-	
+
 	bResetScores = false;
 }
 
-public RestartGame(Handle:convar, const String:oldValue[], const String:newValue[])
+public void RestartGame(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if(StringToInt(newValue) == 0)
 		return; // Not restarting
@@ -53,25 +54,24 @@ public RestartGame(Handle:convar, const String:oldValue[], const String:newValue
 	if(hResetScoresTimer != INVALID_HANDLE)
 		CloseHandle(hResetScoresTimer);
 
-	new Float:fTimer = StringToFloat(newValue);
+	float fTimer = StringToFloat(newValue);
 
 	hResetScoresTimer = CreateTimer(fTimer - 0.1, ResetScoresNextRound);
 }
 
-public Action:ResetScoresNextRound(Handle:timer)
+public Action ResetScoresNextRound(Handle timer)
 {
 	bResetScores = true;
 
 	hResetScoresTimer = INVALID_HANDLE;
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	g_bHasJoinedATeam[client] = false;
 }
 
-
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	if(!bScoreLoaded[client] && !g_bHasJoinedATeam[client])
 		return; // Never tried to load score
@@ -81,13 +81,10 @@ public OnClientDisconnect(client)
 	bScoreLoaded[client] = false;
 }
 
-public Action:cmd_JoinTeam(client, const String:command[], args)
-{ 
-	decl String:cmd[3];
+public Action cmd_JoinTeam(int client, const char[] command, int argc)
+{
+	char cmd[3];
 	GetCmdArgString(cmd, sizeof(cmd));
-
-	new team_current = GetClientTeam(client);
-	new team_target = StringToInt(cmd);
 
 	if(!IsValidClient(client))
 		return;
@@ -95,46 +92,49 @@ public Action:cmd_JoinTeam(client, const String:command[], args)
 	if(IsPlayerAlive(client))
 		return; // Alive player switching team, should never happen when you just connect
 
+	int team_current = GetClientTeam(client);
+	int team_target = StringToInt(cmd);
+
 	if(team_current == team_target && team_target != 0 && team_current != 0)
 		return; // Trying to join same team
 
 	// Score isn't loaded from DB yet
 	if(!bScoreLoaded[client])
 		DB_retrieveScore(client);
-	
+
 	g_bHasJoinedATeam[client] = true;
 }
 
-public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	if (!bResetScores)
+	if(!bResetScores)
 		return;
-	
+
 	bResetScores = false;
-	
+
 	DB_clear();
 }
 
-DB_init()
+void DB_init()
 {
-	new String:error[255];
-	new String:buffer[50];
-	GetConVarString(nt_savescore_database, buffer, sizeof(buffer));
+	char error[255], buffer[50];
 	
+	GetConVarString(hScoreDatabase, buffer, sizeof(buffer));
+
 	hDB = SQLite_UseDatabase(buffer, error, sizeof(error));
-	
-	if (hDB == INVALID_HANDLE)
+
+	if(hDB == INVALID_HANDLE)
 		SetFailState("SQL error: %s", error);
-	
+
 	SQL_LockDatabase(hDB);
 
 	SQL_FastQuery(hDB, "VACUUM");
 	SQL_FastQuery(hDB, "CREATE TABLE IF NOT EXISTS nt_saved_score (steamID TEXT PRIMARY KEY, xp SMALLINT, deaths SMALLINT);");
-	
+
 	SQL_UnlockDatabase(hDB);
 }
 
-DB_clear()
+void DB_clear()
 {
 	SQL_LockDatabase(hDB);
 
@@ -143,30 +143,30 @@ DB_clear()
 	SQL_UnlockDatabase(hDB);
 }
 
-DB_insertScore(client)
+void DB_insertScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
 
-	decl String:steamID[30], String:query[200];
-	new xp, deaths;
-	
+	char steamID[30], query[200];
+	int xp, deaths;
+
 	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
 	xp = GetPlayerXP(client);
 	deaths = GetPlayerDeaths(client);
-	
+
 	Format(query, sizeof(query), "INSERT OR REPLACE INTO nt_saved_score VALUES ('%s', %d, %d);", steamID, xp, deaths);
-	
+
 	SQL_FastQuery(hDB, query);
 }
 
-DB_deleteScore(client)
+void DB_deleteScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
 
-	decl String:steamID[30], String:query[200];
+	char steamID[30], query[200];
 
 	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
@@ -175,15 +175,15 @@ DB_deleteScore(client)
 	SQL_FastQuery(hDB, query);
 }
 
-DB_retrieveScore(client)
+void DB_retrieveScore(int client)
 {
 	if(!IsValidClient(client))
 		return;
 
 	bScoreLoaded[client] = true; // At least we tried!
 
-	decl String:steamID[30], String:query[200];
-	
+	char steamID[30], query[200];
+
 	GetClientAuthId(client, AuthId_SteamID64, steamID, sizeof(steamID));
 
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
@@ -191,7 +191,7 @@ DB_retrieveScore(client)
 	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, client);
 }
 
-public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[], any:client)
+public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] error, int client)
 {
 	if (hndl == INVALID_HANDLE)
 	{
@@ -205,8 +205,8 @@ public DB_retrieveScoreCallback(Handle:owner, Handle:hndl, const String:error[],
 	if (SQL_GetRowCount(hndl) == 0)
 		return;
 
-	new xp = SQL_FetchInt(hndl, 1);
-	new deaths = SQL_FetchInt(hndl, 2);
+	int xp = SQL_FetchInt(hndl, 1);
+	int deaths = SQL_FetchInt(hndl, 2);
 
 	if(xp != 0 || deaths != 0)
 	{
