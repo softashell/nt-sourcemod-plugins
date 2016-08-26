@@ -18,7 +18,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Warmup",
     author = "Agiel, soft as HELL",
     description = "Enables TDM after map change for a few minutes",
-    version = "1.0",
+    version = "1.1",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -30,8 +30,6 @@ bool bWarmupEnabled;
 
 bool clientProtected[MAXPLAYERS+1];
 int clientHP[MAXPLAYERS+1];
-
-int m_iMaxHealth, m_iHealth;
 
 public void OnPluginStart()
 {
@@ -45,12 +43,8 @@ public void OnPluginStart()
 
 	cWarmupTimelimit.AddChangeHook(OnTimeLimitChanged);
 
-	m_iMaxHealth = FindSendPropInfo("CBasePlayer", "m_iMaxHealth");
-	m_iHealth = FindSendPropInfo("CBasePlayer", "m_iHealth");
-
 	HookEvent("player_spawn", OnPlayerSpawn);
 	HookEvent("player_hurt", OnPlayerHurt);
-	HookEvent("player_death", OnPlayerDeath);
 }
 
 public void OnConfigsExecuted()
@@ -93,24 +87,6 @@ public void OnTimeLimitChanged(ConVar convar, const char[] oldValue, const char[
 	}
 }
 
-public void OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
-{
-	if(bWarmupEnabled)
-	{
-		int victim = GetClientOfUserId(GetEventInt(event, "userid"));
-		int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-
-		int victimTeam = GetClientTeam(victim);
-		int attackerTeam = GetClientTeam(attacker);
-
-		int score = 1;
-		if (attackerTeam == victimTeam)
-			score = -1;
-
-		SetTeamScore(attackerTeam, GetTeamScore(attackerTeam) + score);
-	}
-}
-
 public void OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
 	if(bWarmupEnabled)
@@ -132,15 +108,12 @@ public void OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 // Restore players health if they take damage while protected
 public void OnPlayerHurt(Handle event, const char[] name, bool dontBroadcast)
 {
-	if(!m_iMaxHealth || !m_iHealth)
-		return;
-
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
 	if(clientProtected[client])
 	{
-		SetEntData(client, m_iMaxHealth, clientHP[client], 4, true);
-		SetEntData(client, m_iHealth, clientHP[client], 4, true);
+		SetEntProp(client, Prop_Data, "m_iHealth", clientHP[client]);
+		SetEntProp(client, Prop_Send, "m_iHealth", clientHP[client]);
 	}
 }
 
@@ -169,6 +142,22 @@ public Action timer_EndWarmup(Handle timer)
 
 	PrintToChatAll("Warmup ended!");
 
+	for(int i = 1; i <= MaxClients; i++)
+	{
+		if(!IsValidClient(i)) // Maybe ignore spectators as well?
+			continue;
+
+		SetPlayerXP(i, 0);
+		SetPlayerDeaths(i, 0);
+
+		//ClientCommand(i, "classmenu");
+	}
+
+	CreateTimer(1.0, timer_RestartMatch);
+}
+
+public Action timer_RestartMatch(Handle timer)
+{
 	cRestartCommand.SetInt(1);
 }
 
