@@ -5,22 +5,22 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+#define DEBUG 0
+
 public Plugin myinfo =
 {
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.2",
+    version = "0.7.3",
     url = ""
 };
 
 ConVar g_Cvar_AssistsEnabled, g_Cvar_AssistMode, g_Cvar_AssistDamage, g_Cvar_AssistPoints;
 
 bool g_SeenReport[MAXPLAYERS+1];
-int g_Class[MAXPLAYERS+1];
 
-int g_PlayerHealth[MAXPLAYERS+1];
-int g_PlayerAssist[MAXPLAYERS+1];
+int g_PlayerClass[MAXPLAYERS+1], g_PlayerHealth[MAXPLAYERS+1], g_PlayerAssist[MAXPLAYERS+1];
 
 int g_DamageDealt[MAXPLAYERS+1][MAXPLAYERS+1];
 int g_HitsMade[MAXPLAYERS+1][MAXPLAYERS+1];
@@ -44,20 +44,20 @@ public void OnPluginStart()
 
 	AutoExecConfig(true);
 
-	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
-	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
-	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
-	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
+	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Post);
+	HookEvent("player_hurt", OnPlayerHurt, EventHookMode_Post);
+	HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
 }
 
 public void OnClientPutInServer(int client)
 {
 	g_SeenReport[client] = false;
 	g_PlayerAssist[client] = 0;
-	g_Class[client] = CLASS_NONE;
+	g_PlayerClass[client] = CLASS_NONE;
 }
 
-public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
+public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client, victim;
 
@@ -73,7 +73,7 @@ public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadca
 		// Resets everything
 		g_SeenReport[client] = false;
 		g_PlayerHealth[client] = 100;
-		g_Class[client] = CLASS_NONE;
+		g_PlayerClass[client] = CLASS_NONE;
 
 		for(victim = 1; victim <= MaxClients; victim++)
 		{
@@ -86,17 +86,28 @@ public Action Event_RoundStart(Handle event, const char[] name, bool dontBroadca
 	}
 }
 
-public void Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
+public void OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-
-	if(!IsValidClient(client))
-		return;
-
-	g_Class[client] = GetPlayerClass(client);
+	// Player class can be wrong at this point so we will have to wait until game deals with that
+	CreateTimer(0.5, OnPlayerSpawnPost, GetEventInt(event, "userid"));
 }
 
-public Action Event_PlayerHurt(Handle event, const char[] name, bool dontBroadcast)
+public Action OnPlayerSpawnPost(Handle timer, int userid)
+{
+	int client = GetClientOfUserId(userid);
+
+	if(!IsValidClient(client) || GetClientTeam(client) <= TEAM_SPECTATOR)
+		return;
+
+	g_PlayerClass[client] = GetPlayerClass(client);
+	g_PlayerHealth[client] = GetClientHealth(client);
+
+	#if DEBUG > 0
+	PrintToChatAll("[OnPlayerSpawnPost] Player %N (%d) spawned with class %d and %d health", client, client, g_PlayerClass[client], g_PlayerHealth[client]);
+	#endif
+}
+
+public Action OnPlayerHurt(Handle event, const char[] name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -119,7 +130,7 @@ public Action Event_PlayerHurt(Handle event, const char[] name, bool dontBroadca
 	g_HitsTaken[victim][attacker] += 1;
 }
 
-public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+public void OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -145,7 +156,7 @@ void DamageReport(int client)
 
 		if((g_DamageDealt[client][victim] > 0) && (g_HitsMade[client][victim] > 0))
 		{
-			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_Class[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
+			PrintToConsole(client, "Damage dealt to %N [%s]: %i in %i hits", victim, class_names[g_PlayerClass[victim]], g_DamageDealt[client][victim], g_HitsMade[client][victim]);
 
 			totalDamageDealt += g_DamageDealt[client][victim];
 			totalHitsDealt   += g_HitsMade[client][victim];
@@ -159,7 +170,7 @@ void DamageReport(int client)
 
 		if((g_DamageTaken[client][attacker] > 0) && (g_HitsTaken[client][attacker] > 0))
 		{
-			PrintToConsole(client, "Damage taken from %N [%s]: %i in %i hits", attacker, class_names[g_Class[attacker]], g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
+			PrintToConsole(client, "Damage taken from %N [%s]: %i in %i hits", attacker, class_names[g_PlayerClass[attacker]], g_DamageTaken[client][attacker], g_HitsTaken[client][attacker]);
 
 			totalDamageTaken += g_DamageTaken[client][attacker];
 			totalHitsTaken	 += g_HitsTaken[client][attacker];
