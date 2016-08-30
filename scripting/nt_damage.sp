@@ -14,7 +14,7 @@ public Plugin myinfo =
     url = ""
 };
 
-Handle g_hRewardAssists, g_hAssistDamage, g_hAssistPoints, g_hAssistMode;
+ConVar g_Cvar_AssistsEnabled, g_Cvar_AssistMode, g_Cvar_AssistDamage, g_Cvar_AssistPoints;
 
 bool g_SeenReport[MAXPLAYERS+1];
 int g_Class[MAXPLAYERS+1];
@@ -37,10 +37,12 @@ char class_names[][] = {
 
 public void OnPluginStart()
 {
-	g_hRewardAssists = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists");
-	g_hAssistMode 	= CreateConVar("sm_ntdamage_assistmode", "0", "Switches assist mode");
-	g_hAssistDamage = CreateConVar("sm_ntdamage_damage", "45", "Damage required to trigger assist");
-	g_hAssistPoints = CreateConVar("sm_ntdamage_points", "1", "Points given for each assist");
+	g_Cvar_AssistsEnabled = CreateConVar("sm_ntdamage_assists", "0", "Enable/Disable rewarding of assists", _, true, 0.0, true, 1.0);
+	g_Cvar_AssistMode 	= CreateConVar("sm_ntdamage_assistmode", "0", "Switches assist mode", _, true, 0.0, true, 1.0);
+	g_Cvar_AssistDamage = CreateConVar("sm_ntdamage_damage", "45", "Damage required to trigger assist or total damage needed to reward assist", _, true, 45.0);
+	g_Cvar_AssistPoints = CreateConVar("sm_ntdamage_points", "1", "Points given for each assist", _, true, 1.0);
+
+	AutoExecConfig(true);
 
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
@@ -127,8 +129,8 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 
 	DamageReport(victim);
 
-	if(GetConVarInt(g_hRewardAssists) > 0)
-		RewardAssists(victim, attacker, GetConVarInt(g_hAssistMode));
+	if(g_Cvar_AssistsEnabled.BoolValue)
+		RewardAssists(victim, attacker, g_Cvar_AssistMode.IntValue);
 }
 
 void DamageReport(int client)
@@ -175,8 +177,8 @@ void RewardAssists(int client, int killer, int mode)
 {
 	int damage, hits, attacker;
 
-	int target_damage = GetConVarInt(g_hAssistDamage);
-	int reward_points = GetConVarInt(g_hAssistPoints);
+	int target_damage = g_Cvar_AssistDamage.IntValue;
+	int reward_points = g_Cvar_AssistPoints.IntValue;
 
 	for(attacker = 1; attacker <= MaxClients; attacker++)
 	{
