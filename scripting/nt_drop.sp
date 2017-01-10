@@ -9,12 +9,15 @@
 #define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
+// set to true if you want to enable taking weapons with +use (f by default)
+#define ENABLE_USE false
+
 public Plugin myinfo =
 {
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.4",
+	version = "0.7.5",
 	url = ""
 }
 
@@ -40,8 +43,9 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 		}
 	}
+
 	#if DEBUG > 0
-	RegConsoleCmd("sm_wipe", 	 CommandWipe);
+	RegConsoleCmd("sm_wipe", CommandWipe);
 	#endif
 
 	// Clean up dead weapons
@@ -182,6 +186,7 @@ public void OnWeaponDrop(int client, int weapon)
 	SDKHook(weapon, SDKHook_Touch, OnWeaponTouch);
 }
 
+#if ENABLE_USE
 public Action OnPlayerRunCmd(int client, int &buttons)
 {
 	if(buttons & IN_USE)
@@ -246,7 +251,12 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 				g_fLastWeaponSwap[client] = GetGameTime();
 			}
 
+			#if DEBUG > 0
+			PrintToChatAll("[OnPlayerRunCmd] %d %d", client, weapon);
+			#endif
+
 			DataPack pack;
+
 			CreateDataTimer(0.1, TakeWeapon, pack);
 
 			// Pass data to timer
@@ -258,23 +268,42 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 	}
 }
 
-public Action TakeWeapon(Handle timer, Handle pack)
+public Action TakeWeapon(Handle timer, DataPack pack)
 {
-	ResetPack(pack);
+	pack.Reset();
 
-	int client = ReadPackCell(pack);
-	int weapon = ReadPackCell(pack);
+	int client = pack.ReadCell();
+	int weapon = pack.ReadCell();
+
+	pack.Close();
+
+	#if DEBUG > 0
+	PrintToChatAll("[TakeWeapon] %d %d", client, weapon);
+	#endif
 
 	if(!IsValidEdict(weapon))
 		return;
 
-	// Equip weapon
-	EquipPlayerWeapon(client, weapon);
+	int slot = GetWeaponSlot(weapon);
+	int currentweapon = GetPlayerWeaponSlot(client, slot);
 
-	// Switch to active weapon
-	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
-	ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
+	if((currentweapon != -1) && IsValidEdict(currentweapon))
+	{
+		#if DEBUG > 0
+		PrintToChatAll("[TakeWeapon] %d can't equip %d because we picked up %d already", client, weapon, currentweapon);
+		#endif
+
+		return;
+	} else {
+		// Equip weapon
+		EquipPlayerWeapon(client, weapon);
+
+		// Switch to active weapon
+		SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", weapon);
+		ChangeEdictState(client, FindDataMapInfo(client, "m_hActiveWeapon"));
+	}
 }
+#endif
 
 public Action ChangeSpawnFlags(Handle timer, int weapon)
 {
