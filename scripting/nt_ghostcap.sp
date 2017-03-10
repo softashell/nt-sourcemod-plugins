@@ -7,10 +7,11 @@
 #pragma newdecls required
 
 #define DEBUG 0
+#define PRECISE 1
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.6.0"
+#define PLUGIN_VERSION	"1.7.0"
 
 public Plugin myinfo =
 {
@@ -55,7 +56,9 @@ public void OnPluginStart()
 		}
 	}
 
+	#if PRECISE < 1
 	CreateTimer(0.25, CheckGhostPosition, _, TIMER_REPEAT);
+	#endif
 }
 
 public void OnClientPutInServer(int client)
@@ -164,6 +167,13 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	// Allow logging of ghost capture again
 	roundReset = true;
 }
+
+#if PRECISE > 0
+public void OnGameFrame()
+{
+	CheckGhostPosition(INVALID_HANDLE);
+}
+#endif
 
 public Action CheckGhostPosition(Handle timer)
 {
