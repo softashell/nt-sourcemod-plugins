@@ -1,4 +1,5 @@
 #include <sourcemod>
+#include <neotokyo>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -87,9 +88,13 @@ bool IsAnyoneConnected()
 {
 	for(int i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientConnected(i) && !IsFakeClient(i)) // Maybe ignore spectators as well?
+		if(IsClientConnected(i) && !IsFakeClient(i))
 		{
-			return true;
+			int team = GetClientTeam(i);
+
+			if (team == TEAM_JINRAI || team == TEAM_NSF) {
+				return true;
+			}
 		}
 	}
 
