@@ -12,7 +12,7 @@ public const Plugin myinfo =
 	name = "AutoRestart",
 	author = "MikeJS, soft as HELL",
 	description = "Automatically restarts the server when it's empty.",
-	version = "1.5.1",
+	version = "1.5.2",
 	url = "http://forums.alliedmods.net/showthread.php?t=87291",
 }
 
