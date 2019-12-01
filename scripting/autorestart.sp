@@ -88,7 +88,7 @@ bool IsAnyoneConnected()
 {
 	for(int i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientConnected(i) && !IsFakeClient(i))
+		if(IsValidClient(i) && IsClientConnected(i) && !IsFakeClient(i))
 		{
 			int team = GetClientTeam(i);
 
