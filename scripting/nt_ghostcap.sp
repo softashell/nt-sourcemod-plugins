@@ -37,7 +37,7 @@ bool capzoneDataUpdated[MAXCAPZONES+1];
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	// These names must be guaranteed globally unique.
-	// Also note that renaming them may break other plugins relying on these native call.
+	// Also note that renaming them may break other plugins relying on these native calls.
 	CreateNative("GhostEvents_RemoveCapzone", Native_RemoveCapzone);
 	CreateNative("GhostEvents_UpdateCapzone", Native_UpdateCapzone);
 	return APLRes_Success;
