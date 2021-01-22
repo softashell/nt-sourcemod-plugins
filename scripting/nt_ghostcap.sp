@@ -342,7 +342,8 @@ void PushOnGhostDrop(int client)
 }
 
 // Purpose: Removes a capzone from this plugin's tracking entirely, as if it was removed.
-// This can be useful to call before dynamically deleting a capzone, to avoid plugin conflicts.
+// This can be useful to call before dynamically deleting a capzone, to avoid plugin conflicts
+// for that change.
 //
 //	Input: a valid capzone entity index
 //	Output:
@@ -373,7 +374,8 @@ public int Native_RemoveCapzone(Handle plugin, int numParams)
 }
 
 // Purpose: Updates capzone positions info, etc, for a capzone tracked by this plugin.
-// This can be useful after dynamically moving a capzone to a different position or changing its radius.
+// This can be useful to call after dynamically moving a capzone to a different position
+// or changing its radius, to avoid plugin conflicts for that change.
 //
 //	Input: a valid capzone entity index
 //	Output:
