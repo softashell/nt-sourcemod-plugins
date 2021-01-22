@@ -11,9 +11,9 @@
  * of the plugin load order.
  *
  * @param capzone_entity    Integer value of a valid capzone entity index.
- * @return        			1 if capzone was recognized and hence removed from this plugin's tracking. 0 otherwise.
+ * @return        			True if capzone was recognized and hence removed from this plugin's tracking. False otherwise.
  */
-native int GhostEvents_RemoveCapzone(int capzone_entity);
+native bool GhostEvents_RemoveCapzone(int capzone_entity);
 
 /**
  * Updates capzone positions info, etc, for a capzone tracked by this plugin.
@@ -22,6 +22,6 @@ native int GhostEvents_RemoveCapzone(int capzone_entity);
  * of the plugin load order.
  *
  * @param capzone_entity    Integer value of a valid capzone entity index.
- * @return        			1 if capzone was recognized, and it was also successfully updated in this plugin's tracking. 0 otherwise.
+ * @return        			True if capzone was recognized, and it was also successfully updated in this plugin's tracking. False otherwise.
  */
-native int GhostEvents_UpdateCapzone(int capzone_entity);
+native bool GhostEvents_UpdateCapzone(int capzone_entity);

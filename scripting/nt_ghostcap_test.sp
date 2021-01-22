@@ -18,8 +18,8 @@ public void OnAllPluginsLoaded()
 	// Picking an entity index that is guaranteed to never match an actual tracked value.
 	int fictional_capzone_entity_index = GetMaxEntities() + 1;
 
-	int native_remove_res = GhostEvents_RemoveCapzone(fictional_capzone_entity_index);
-	int native_update_res = GhostEvents_UpdateCapzone(fictional_capzone_entity_index);
+	bool native_remove_res = GhostEvents_RemoveCapzone(fictional_capzone_entity_index);
+	bool native_update_res = GhostEvents_UpdateCapzone(fictional_capzone_entity_index);
 
 	PrintToServer("Native return values: %d, %d", native_remove_res, native_update_res);
 }
