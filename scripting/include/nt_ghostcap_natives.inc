@@ -1,5 +1,5 @@
 #if defined _NT_GHOSTCAP_NATIVES_INC_
-	#endinput
+    #endinput
 #else
 #define _NT_GHOSTCAP_NATIVES_INC_
 #endif
@@ -11,7 +11,7 @@
  * of the plugin load order.
  *
  * @param capzone_entity    Integer value of a valid capzone entity index.
- * @return        			True if capzone was recognized and hence removed from this plugin's tracking. False otherwise.
+ * @return                  True if capzone was recognized and hence removed from this plugin's tracking. False otherwise.
  */
 native bool GhostEvents_RemoveCapzone(int capzone_entity);
 
@@ -22,6 +22,6 @@ native bool GhostEvents_RemoveCapzone(int capzone_entity);
  * of the plugin load order.
  *
  * @param capzone_entity    Integer value of a valid capzone entity index.
- * @return        			True if capzone was recognized, and it was also successfully updated in this plugin's tracking. False otherwise.
+ * @return                  True if capzone was recognized, and it was also successfully updated in this plugin's tracking. False otherwise.
  */
 native bool GhostEvents_UpdateCapzone(int capzone_entity);
