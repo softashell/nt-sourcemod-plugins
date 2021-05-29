@@ -11,7 +11,7 @@
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
 
-#define PLUGIN_VERSION	"1.7.0"
+#define PLUGIN_VERSION	"1.8.0"
 
 public Plugin myinfo =
 {
@@ -19,7 +19,7 @@ public Plugin myinfo =
 	author = "soft as HELL",
 	description = "Logs ghost capture event",
 	version = PLUGIN_VERSION,
-	url = ""
+	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn, g_hForwardPickUp, g_hForwardDrop;
@@ -33,6 +33,15 @@ float fStartRoundTime;
 int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
 float capzoneVector[MAXCAPZONES+1][3];
 bool capzoneDataUpdated[MAXCAPZONES+1];
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	// These names must be guaranteed globally unique.
+	// Also note that renaming them may break other plugins relying on these native calls.
+	CreateNative("GhostEvents_RemoveCapzone", Native_RemoveCapzone);
+	CreateNative("GhostEvents_UpdateCapzone", Native_UpdateCapzone);
+	return APLRes_Success;
+}
 
 public void OnPluginStart()
 {
@@ -196,7 +205,7 @@ public Action CheckGhostPosition(Handle timer)
 
 	for(capzone = 0; capzone <= totalCapzones; capzone++)
 	{
-		if(!IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
+		if(capzones[capzone] == 0 || !IsValidEdict(capzones[capzone]) || (capRadius[capzone] <= 0))
 			continue; // Doesn't exist or no radius
 
 		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
@@ -330,4 +339,67 @@ void PushOnGhostDrop(int client)
 	Call_StartForward(g_hForwardDrop);
 	Call_PushCell(client);
 	Call_Finish();
+}
+
+// Purpose: Removes a capzone from this plugin's tracking entirely, as if it was removed.
+// This can be useful to call before dynamically deleting a capzone, to avoid plugin conflicts
+// for that change.
+//
+//	Input: a valid capzone entity index
+//	Output:
+//		- 1 if capzone was recognized and removed from this plugin's tracking
+//		- 0 if the capzone was not found
+// Note that either return value may not be an error, but merely a side effect of the plugin load order.
+public int Native_RemoveCapzone(Handle plugin, int numParams)
+{
+	int capzone_entity = GetNativeCell(1);
+
+	for(int i = 0; i <= totalCapzones; i++)
+	{
+		if (capzones[i] == 0)
+			continue;
+
+		int ent = EntRefToEntIndex(capzones[i]);
+		if (ent == INVALID_ENT_REFERENCE)
+			continue;
+
+		if (ent != capzone_entity)
+			continue;
+
+		capzones[i] = 0;
+		capzoneDataUpdated[i] = false;
+		return 1;
+	}
+	return 0;
+}
+
+// Purpose: Updates capzone positions info, etc, for a capzone tracked by this plugin.
+// This can be useful to call after dynamically moving a capzone to a different position
+// or changing its radius, to avoid plugin conflicts for that change.
+//
+//	Input: a valid capzone entity index
+//	Output:
+//		- 1 if capzone was recognized, and it was also successfully updated in this plugin's tracking
+//		- 0 if the capzone was not found
+// Note that either return value may not be an error, but merely a side effect of the plugin load order.
+public int Native_UpdateCapzone(Handle plugin, int numParams)
+{
+	int capzone_entity = GetNativeCell(1);
+
+	for(int capzone = 0; capzone <= totalCapzones; capzone++)
+	{
+		if (capzones[capzone] == 0)
+			continue;
+
+		int ent = EntRefToEntIndex(capzones[capzone]);
+		if (ent == INVALID_ENT_REFERENCE)
+			continue;
+
+		if (ent != capzone_entity)
+			continue;
+
+		capzoneDataUpdated[capzone] = UpdateCapzoneData(capzone);
+		return capzoneDataUpdated[capzone] ? 1 : 0;
+	}
+	return 0;
 }
