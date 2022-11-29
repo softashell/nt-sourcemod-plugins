@@ -10,8 +10,9 @@
 #define PRECISE 1
 #define MAXCAPZONES 4
 #define INACCURACY 0.35
+#define ROUND_END 3
 
-#define PLUGIN_VERSION	"1.8.0"
+#define PLUGIN_VERSION	"1.9.0"
 
 public Plugin myinfo =
 {
@@ -22,12 +23,12 @@ public Plugin myinfo =
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
-Handle g_hRoundTime, g_hForwardCapture, g_hForwardSpawn, g_hForwardPickUp, g_hForwardDrop;
+Handle g_hForwardCapture, g_hForwardSpawn, g_hForwardPickUp, g_hForwardDrop;
 
 // Globals
 int ghost, totalCapzones;
-bool roundReset = true;
-float fStartRoundTime;
+bool roundEnded = false;
+int ghostCarrier;
 
 // Capture point data
 int capzones[MAXCAPZONES+1], capTeam[MAXCAPZONES+1], capRadius[MAXCAPZONES+1];
@@ -47,14 +48,13 @@ public void OnPluginStart()
 {
 	CreateConVar("sm_ntghostcap_version", PLUGIN_VERSION, "NEOTOKYO° Ghost cap event version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
-	g_hRoundTime = FindConVar("neo_round_timelimit");
-
 	g_hForwardCapture = CreateGlobalForward("OnGhostCapture", ET_Event, Param_Cell);
 	g_hForwardSpawn = CreateGlobalForward("OnGhostSpawn", ET_Event, Param_Cell);
 	g_hForwardPickUp = CreateGlobalForward("OnGhostPickUp", ET_Event, Param_Cell);
 	g_hForwardDrop = CreateGlobalForward("OnGhostDrop", ET_Event, Param_Cell);
 
 	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
+	HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
 
 	// Hook again if plugin is restarted
 	for(int client = 1; client <= MaxClients; client++)
@@ -74,6 +74,14 @@ public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
 	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
+}
+
+public void OnClientDisconnect(int client)
+{
+	if (client == ghostCarrier)
+	{
+		PushOnGhostDrop(client);
+	}
 }
 
 public void OnWeaponEquip(int client, int weapon)
@@ -113,7 +121,7 @@ public void OnMapEnd()
 	#endif
 
 	totalCapzones = 0;
-	roundReset = true;
+	ghostCarrier = 0;
 
 	for(int i = 0; i <= MAXCAPZONES; i++)
 	{
@@ -145,7 +153,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	fStartRoundTime = GetGameTime();
+	ghostCarrier = 0;
 
 	if(!totalCapzones)
 		return; // No cap zones
@@ -173,8 +181,16 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 		#endif
 	}
 
-	// Allow logging of ghost capture again
-	roundReset = true;
+	roundEnded = false;
+}
+
+public void OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(victim == ghostCarrier)
+	{
+		PushOnGhostDrop(victim);
+	}
 }
 
 #if PRECISE > 0
@@ -210,7 +226,12 @@ public Action CheckGhostPosition(Handle timer)
 
 		distance = GetVectorDistance(ghostVector, capzoneVector[capzone]);
 
-		if(distance > capRadius[capzone])
+		#if DEBUG > 0
+		if (HasRoundEnded())
+			PrintToChatAll("[nt_ghostcap] Distance: %f, Radius: %d", distance, capRadius[capzone]);
+		#endif
+
+		if(RoundToZero(distance) > capRadius[capzone])
 			continue; // Too far away
 
 		if(carrierTeamID != capTeam[capzone])
@@ -222,8 +243,6 @@ public Action CheckGhostPosition(Handle timer)
 		}
 		else if(IsAnyEnemyStillAlive(carrierTeamID))
 		{
-			roundReset = false; // Won't spam any more events unless value is set to true
-
 			PushOnGhostCapture(carrier);
 
 			LogGhostCapture(carrier, carrierTeamID);
@@ -274,14 +293,17 @@ bool UpdateCapzoneData(int capzone)
 
 bool HasRoundEnded()
 {
-	if(!roundReset)
-		return true;
-
-	float maxRoundTime = GetConVarFloat(g_hRoundTime) * 60;
-	float currentRoundTime = GetGameTime() - fStartRoundTime;
-
-	if(currentRoundTime > maxRoundTime + INACCURACY)
+	int gameState = GameRules_GetProp("m_iGameState");
+	if(gameState == ROUND_END)
+	{
+		// The round might have ended due to a cap so give us a one frame grace period
+		if (!roundEnded)
+		{
+			roundEnded = true;
+			return false;
+		}
 		return true; // This round has already ended, don't trigger caps until next round starts
+	}
 
 	return false;
 }
@@ -326,6 +348,7 @@ void PushOnGhostPickUp(int client)
 	PrintToServer("[nt_ghostcap] Ghost picked up by %N (%d)! Pushing OnGhostPickedUp forward", client, client);
 	#endif
 
+	ghostCarrier = client;
 	Call_StartForward(g_hForwardPickUp);
 	Call_PushCell(client);
 	Call_Finish();
@@ -336,6 +359,7 @@ void PushOnGhostDrop(int client)
 	PrintToServer("[nt_ghostcap] Ghost dropped by %N (%d)! Pushing OnGhostDropped forward", client, client);
 	#endif
 
+	ghostCarrier = 0;
 	Call_StartForward(g_hForwardDrop);
 	Call_PushCell(client);
 	Call_Finish();
