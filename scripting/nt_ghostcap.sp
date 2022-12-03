@@ -12,7 +12,7 @@
 #define INACCURACY 0.35
 #define ROUND_END 3
 
-#define PLUGIN_VERSION	"1.9.0"
+#define PLUGIN_VERSION	"1.10.0"
 
 public Plugin myinfo =
 {
@@ -80,7 +80,15 @@ public void OnClientDisconnect(int client)
 {
 	if (client == ghostCarrier)
 	{
-		PushOnGhostDrop(client);
+		int primary_weapon = GetEntPropEnt(client, Prop_Data, "m_hMyWeapons");
+		// Assuming that when (client == ghostCarrier), player's primary weapon must be the ghost.
+		if (primary_weapon != -1)
+		{
+			float client_pos[3];
+			GetClientAbsOrigin(client, client_pos);
+			SDKHooks_DropWeapon(client, primary_weapon, client_pos, NULL_VECTOR);
+			PushOnGhostDrop(client);
+		}
 	}
 }
 
