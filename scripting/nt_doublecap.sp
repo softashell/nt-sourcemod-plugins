@@ -9,11 +9,11 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL",
     description = "Removes ghost as soon as it's captured",
-    version = "0.4.0",
+    version = "0.5.0",
     url = ""
 };
 
-new ghost;
+new ghost = INVALID_ENT_REFERENCE;
 
 public OnGhostSpawn(entity)
 {
