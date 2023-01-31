@@ -42,7 +42,7 @@ public void OnPluginStart()
 #if DEBUG > 0
 public Action CommandMoveGhost(int client, int args)
 {
-	MoveGhost(GetRandomInt(0, ghostSpawnPoints));
+	MoveGhost(GetRandomInt(0, ghostSpawnPoints-1));
 
 	return Plugin_Handled;
 }
@@ -105,7 +105,7 @@ void CheckSpawnedGhost(int entity)
 void MoveGhost(int spawnPointId)
 {
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d Total points: %d", spawnPointId, ghostSpawnPoints+1);
+	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d Total points: %d", spawnPointId, ghostSpawnPoints);
 	#endif
 	
 	if(!IsValidEntity(EntRefToEntIndex(ghost)))
@@ -113,22 +113,29 @@ void MoveGhost(int spawnPointId)
 		return;
 	}
 
-	TeleportEntity(EntRefToEntIndex(ghost), ghostSpawnOrigin[spawnPointId], ghostSpawnRotation[spawnPointId], NULL_VECTOR);
+	int ghostCarrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
+	if(IsValidClient(ghostCarrier))
+	{
+		return;
+	}
+
+	// Need to pass this to avoid prop being stuck in air
+	float vecVelocity[3] = { 0.0, 0.01, 0.0 };
+
+	TeleportEntity(EntRefToEntIndex(ghost), ghostSpawnOrigin[spawnPointId], ghostSpawnRotation[spawnPointId], vecVelocity);
 }
 
 void AddGhostSpawn(int entity)
 {
-	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Upadting ghost spawn point location %d Total points: %d", entity, ghostSpawnPoints+1);
-	#endif
-
-	int spawn = ghostSpawnPoints;
 	ghostSpawnPoints++;
 
+	#if DEBUG > 0
+	PrintToServer("[nt_ghost_spawn_bias] Upadting ghost spawn point location %d Total points: %d", entity, ghostSpawnPoints);
+	#endif
+
+	int spawn = ghostSpawnPoints-1;
+
 	ghostSpawnEntity[spawn] = EntIndexToEntRef(entity);
-	
-	// Update location
-	UpdateGhostSpawn(spawn);
 }
 
 void UpdateGhostSpawn(int spawnPointId)
@@ -153,7 +160,7 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	PrintToServer("[nt_ghost_spawn_bias] Updating ghost data at round start");
 	#endif
 
-	for(int spawn = 0; spawn <= ghostSpawnPoints; spawn++)
+	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
 	{
 		UpdateGhostSpawn(spawn);
 	}
