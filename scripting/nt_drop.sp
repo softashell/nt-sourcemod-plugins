@@ -9,6 +9,8 @@
 #define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
+#define NEO_MAX_PLAYERS 32
+
 // set to true if you want to enable taking weapons with +use (f by default)
 #define ENABLE_USE false
 
@@ -17,7 +19,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.5",
+	version = "0.7.6",
 	url = ""
 }
 
@@ -29,7 +31,7 @@ char weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-float g_fLastWeaponUse[MAXPLAYERS+1], g_fLastWeaponSwap[MAXPLAYERS+1];
+float g_fLastWeaponUse[NEO_MAX_PLAYERS+1], g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
 
 public void OnPluginStart()
 {
@@ -344,7 +346,7 @@ public Action WipeDeadWeapons(Handle timer)
 
 	char classname[64];
 
-	for (int i = MAXPLAYERS+1; i < 2048; i++)
+	for (int i = MaxClients+1; i < 2048; i++)
 	{
 		if (IsValidEntity(i))
 		{
