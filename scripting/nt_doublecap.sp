@@ -9,34 +9,64 @@ public Plugin:myinfo =
     name = "NEOTOKYO° Double cap prevention",
     author = "soft as HELL",
     description = "Removes ghost as soon as it's captured",
-    version = "0.5.0",
+    version = "0.6.0",
     url = ""
 };
 
-new ghost = INVALID_ENT_REFERENCE;
+int ghost = INVALID_ENT_REFERENCE;
+int ghoster_userid;
+
+public void OnPluginStart()
+{
+	if (!HookEventEx("game_round_end", OnGameRoundEnd))
+	{
+		SetFailState("Failed to hook game_round_end");
+	}
+}
+
+public void OnGameRoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	UnEquipGhost(GetClientOfUserId(ghoster_userid));
+	RemoveGhost();
+}
 
 public OnGhostSpawn(entity)
 {
 	// Save current ghost id for later use
 	ghost = entity;
-
-	PrintToServer("Ghost %i spawned", ghost);
 }
 
 public OnGhostCapture(client)
 {
 	// Might have to delay this for a bit, 0.5 seconds?
-	RemoveGhost(client);
+	UnEquipGhost(client);
+	RemoveGhost();
 }
 
-RemoveGhost(client)
+public void OnGhostPickUp(int client)
+{
+	ghoster_userid = GetClientUserId(client);
+}
+
+public void OnGhostDrop(int client)
+{
+	ghoster_userid = 0;
+}
+
+void RemoveGhost()
+{
+	if (IsValidEdict(ghost))
+	{
+		AcceptEntityInput(ghost, "Kill");
+	}
+}
+
+void UnEquipGhost(int client)
 {
 	if(!IsValidEdict(ghost))
 	{
 		return;
 	}
-
-	PrintToServer("Removing current ghost %i", ghost);
 
 	// Switch to last weapon if player is still alive and has ghost active
 	if(IsValidClient(client) && IsPlayerAlive(client))
@@ -62,7 +92,4 @@ RemoveGhost(client)
 			}
 		}
 	}
-
-	// Delete ghost
-	AcceptEntityInput(ghost, "Kill");
 }
