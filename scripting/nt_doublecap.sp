@@ -4,13 +4,13 @@
 #include <sdktools>
 #include <neotokyo>
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
-    name = "NEOTOKYO° Double cap prevention",
-    author = "soft as HELL",
-    description = "Removes ghost as soon as it's captured",
-    version = "0.6.0",
-    url = ""
+	name = "NEOTOKYO° Double cap prevention",
+	author = "soft as HELL",
+	description = "Removes ghost as soon as it's captured",
+	version = "0.6.0",
+	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 int ghost = INVALID_ENT_REFERENCE;
@@ -30,13 +30,13 @@ public void OnGameRoundEnd(Event event, const char[] name, bool dontBroadcast)
 	RemoveGhost();
 }
 
-public OnGhostSpawn(entity)
+public void OnGhostSpawn(int entity)
 {
 	// Save current ghost id for later use
 	ghost = entity;
 }
 
-public OnGhostCapture(client)
+public void OnGhostCapture(int client)
 {
 	// Might have to delay this for a bit, 0.5 seconds?
 	UnEquipGhost(client);
@@ -71,12 +71,12 @@ void UnEquipGhost(int client)
 	// Switch to last weapon if player is still alive and has ghost active
 	if(IsValidClient(client) && IsPlayerAlive(client))
 	{
-		new activeweapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
-		new ghost_index = EntRefToEntIndex(ghost);
+		int activeweapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+		int ghost_index = EntRefToEntIndex(ghost);
 
 		if(activeweapon == ghost_index)
 		{
-			new lastweapon = GetEntPropEnt(client, Prop_Data, "m_hLastWeapon");
+			int lastweapon = GetEntPropEnt(client, Prop_Data, "m_hLastWeapon");
 
 			if(IsValidEdict(lastweapon))
 			{
