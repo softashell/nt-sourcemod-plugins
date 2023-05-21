@@ -116,6 +116,10 @@ void UnEquipGhost(int client)
 	// This can happen for knifeless players, ie. supports.
 	if (client == owner)
 	{
+		// If secondary was aimed-in when switching to ghost,
+		// forcibly setting it active will also re-enable the aim zoom,
+		// so explicitly turn off any previous aim zoom before switching.
+		SetEntProp(lastweapon, Prop_Send, "bAimed", false);
 		SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", lastweapon);
 	}
 }
