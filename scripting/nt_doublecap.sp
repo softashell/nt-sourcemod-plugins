@@ -9,14 +9,13 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Double cap prevention",
 	author = "soft as HELL",
 	description = "Removes ghost as soon as it's captured",
-	version = "1.0.0",
+	version = "2.0.0",
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 new ghost = INVALID_ENT_REFERENCE;
 int ghoster;
 bool loaded_late;
-Handle timer_roundState = INVALID_HANDLE;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -24,10 +23,35 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	return APLRes_Success;
 }
 
+public void OnAllPluginsLoaded()
+{
+#define REQ_NAME 0
+#define REQ_VERSION_CVAR 1
+#define REQ_DOWNLOAD_URL 2
+	char reqs[2][3][] = {
+		{
+			"NEOTOKYO° Ghost capture event",
+			"sm_ntghostcap_version",
+			"https://github.com/softashell/nt-sourcemod-plugins/blob/master/scripting/nt_ghostcap.sp"
+		},
+		{
+			"NEOTOKYO OnRoundConcluded Event",
+			"sm_onroundconcluded_version",
+			"https://github.com/Rainyan/sourcemod-nt-onroundconcluded-event"
+		},
+	};
+	for (int i = 0; i < sizeof(reqs); ++i)
+	{
+		if (FindConVar(reqs[i][REQ_VERSION_CVAR]) == null)
+		{
+			SetFailState("This plugin requires the \"%s\" plugin: %s",
+				reqs[i][REQ_NAME], reqs[i][REQ_DOWNLOAD_URL]);
+		}
+	}
+}
+
 public void OnPluginStart()
 {
-	HookEvent("game_round_start", OnRoundStart);
-
 	if (loaded_late)
 	{
 		char cls[32];
@@ -46,21 +70,6 @@ public void OnPluginStart()
 	}
 }
 
-public void OnMapEnd()
-{
-	timer_roundState = INVALID_HANDLE;
-}
-
-public void OnRoundStart(Event event, const char[] name, bool dontBroadcast)
-{
-	if (timer_roundState != INVALID_HANDLE)
-	{
-		CloseHandle(timer_roundState);
-	}
-	timer_roundState = CreateTimer(1.0, Timer_CheckGameState, _,
-		TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-}
-
 public void OnGhostPickUp(int client)
 {
 	ghoster = client;
@@ -77,10 +86,9 @@ public void OnGhostSpawn(int entity)
 	ghost = entity;
 }
 
-public void OnGhostCapture(int client)
+public void OnRoundConcluded(int winner)
 {
-	delete timer_roundState;
-	UnEquipGhost(client);
+	UnEquipGhost(ghoster);
 	RemoveGhost();
 }
 
@@ -135,18 +143,4 @@ void RemoveGhost()
 	{
 		ghost = INVALID_ENT_REFERENCE;
 	}
-}
-
-public Action Timer_CheckGameState(Handle timer)
-{
-	if (GameRules_GetProp("m_iGameState") != GAMESTATE_ROUND_OVER)
-	{
-		return Plugin_Continue;
-	}
-
-	UnEquipGhost(ghoster);
-	RemoveGhost();
-
-	timer_roundState = INVALID_HANDLE;
-	return Plugin_Stop;
 }
