@@ -16,9 +16,11 @@ nt_ghostcap
 ====================
 Logs ghost capture event so you can award players in HLSTATSX:CE, also creates OnGhostCapture(client) forward other plugins can use (example in nt_ghostcap_test.sp)
 
-nt_doublecap (**Requires nt_ghostcap to work**)
+nt_doublecap
 ====================
-Removes ghost when it's captured to prevent double capping
+Removes ghost when round has ended to prevent double capping
+* **Requires nt_ghostcap to work**
+* **Requires ["NEOTOKYO OnRoundConcluded Event"](https://github.com/Rainyan/sourcemod-nt-onroundconcluded-event) to work**
 
 nt_drop
 ====================
