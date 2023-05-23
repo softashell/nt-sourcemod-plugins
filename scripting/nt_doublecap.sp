@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Double cap prevention",
 	author = "soft as HELL",
 	description = "Removes ghost as soon as it's captured",
-	version = "0.6.1",
+	version = "1.0.0",
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -139,9 +139,6 @@ void RemoveGhost()
 
 public Action Timer_CheckGameState(Handle timer)
 {
-#define GAMESTATE_WAITING_FOR_PLAYERS 1
-#define GAMESTATE_ROUND_ACTIVE 2
-#define GAMESTATE_ROUND_OVER 3
 	if (GameRules_GetProp("m_iGameState") != GAMESTATE_ROUND_OVER)
 	{
 		return Plugin_Continue;
