@@ -9,13 +9,15 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Double cap prevention",
 	author = "soft as HELL",
 	description = "Removes ghost as soon as it's captured",
-	version = "2.0.0",
+	version = "2.0.1",
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
 new ghost = INVALID_ENT_REFERENCE;
 int ghoster;
 bool loaded_late;
+float round_start_time = 0.0;
+Handle timer_late_nuke_ghost = INVALID_HANDLE;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -68,6 +70,32 @@ public void OnPluginStart()
 			}
 		}
 	}
+
+	HookEvent("game_round_start", OnRoundStart);
+}
+
+public void OnMapEnd()
+{
+	// Never take the delayed "remove ghost" to the next map
+	if (timer_late_nuke_ghost != INVALID_HANDLE)
+	{
+		CloseHandle(timer_late_nuke_ghost);
+		timer_late_nuke_ghost = INVALID_HANDLE;
+	}
+
+	round_start_time = 0.0;
+}
+
+public void OnRoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	// Never take the delayed "remove ghost" to the next round
+	if (timer_late_nuke_ghost != INVALID_HANDLE)
+	{
+		CloseHandle(timer_late_nuke_ghost);
+		timer_late_nuke_ghost = INVALID_HANDLE;
+	}
+
+	round_start_time = GetGameTime();
 }
 
 public void OnGhostPickUp(int client)
@@ -88,8 +116,40 @@ public void OnGhostSpawn(int entity)
 
 public void OnRoundConcluded(int winner)
 {
+	float dt = GetGameTime() - round_start_time;
+
+	// Ghost removal must be slightly delayed, because if the round ends instantly after
+	// it starts, we would remove the ghost too soon for the game logic, which causes
+	// a glitch that spawns multiple ghosts for the next round.
+	// This bug can trigger when recovering from the nt_competitive paused state.
+	float required_delay_secs = 1.0;
+
+	// If round_start_time == 0, we don't have knowledge of when last round started,
+	// probably because we loaded late, so we gotta do this route for safety.
+	if (dt < required_delay_secs || round_start_time == 0)
+	{
+		// Never queue multiple delayed ghost removals at once
+		if (timer_late_nuke_ghost != INVALID_HANDLE)
+		{
+			CloseHandle(timer_late_nuke_ghost);
+		}
+
+		timer_late_nuke_ghost = CreateTimer(required_delay_secs, Timer_DelayedNukeGhost);
+	}
+	else
+	{
+		// We're safe for instant ghost deletion, so just call the timer callback directly
+		Timer_DelayedNukeGhost(INVALID_HANDLE);
+	}
+}
+
+public Action Timer_DelayedNukeGhost(Handle timer)
+{
 	UnEquipGhost(ghoster);
 	RemoveGhost();
+
+	timer_late_nuke_ghost = INVALID_HANDLE;
+	return Plugin_Stop;
 }
 
 void UnEquipGhost(int client)
