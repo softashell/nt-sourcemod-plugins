@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Double cap prevention",
 	author = "soft as HELL",
 	description = "Removes ghost as soon as it's captured",
-	version = "2.0.1",
+	version = "2.0.2",
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -124,16 +124,16 @@ public void OnRoundConcluded(int winner)
 	// This bug can trigger when recovering from the nt_competitive paused state.
 	float required_delay_secs = 1.0;
 
+	// Never queue multiple delayed ghost removals at once
+	if (timer_late_nuke_ghost != INVALID_HANDLE)
+	{
+		CloseHandle(timer_late_nuke_ghost);
+	}
+
 	// If round_start_time == 0, we don't have knowledge of when last round started,
 	// probably because we loaded late, so we gotta do this route for safety.
 	if (dt < required_delay_secs || round_start_time == 0)
 	{
-		// Never queue multiple delayed ghost removals at once
-		if (timer_late_nuke_ghost != INVALID_HANDLE)
-		{
-			CloseHandle(timer_late_nuke_ghost);
-		}
-
 		timer_late_nuke_ghost = CreateTimer(required_delay_secs, Timer_DelayedNukeGhost);
 	}
 	else
