@@ -27,10 +27,14 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnAllPluginsLoaded()
 {
-#define REQ_NAME 0
-#define REQ_VERSION_CVAR 1
-#define REQ_DOWNLOAD_URL 2
-	char reqs[2][3][] = {
+	enum {
+		Req_Name = 0,
+		Req_VersionCvar,
+		Req_DownloadUrl,
+
+		Req_EnumCount
+	};
+	char reqs[][Req_EnumCount][] = {
 		{
 			"NEOTOKYO° Ghost capture event",
 			"sm_ntghostcap_version",
@@ -44,10 +48,10 @@ public void OnAllPluginsLoaded()
 	};
 	for (int i = 0; i < sizeof(reqs); ++i)
 	{
-		if (FindConVar(reqs[i][REQ_VERSION_CVAR]) == null)
+		if (FindConVar(reqs[i][Req_VersionCvar]) == null)
 		{
 			SetFailState("This plugin requires the \"%s\" plugin: %s",
-				reqs[i][REQ_NAME], reqs[i][REQ_DOWNLOAD_URL]);
+				reqs[i][Req_Name], reqs[i][Req_DownloadUrl]);
 		}
 	}
 }
