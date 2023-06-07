@@ -34,7 +34,7 @@ public void OnAllPluginsLoaded()
 
 		Req_EnumCount
 	};
-	char reqs[][Req_EnumCount][] = {
+	char reqs[2][Req_EnumCount][] = {
 		{
 			"NEOTOKYO° Ghost capture event",
 			"sm_ntghostcap_version",
