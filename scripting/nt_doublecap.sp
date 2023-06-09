@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Double cap prevention",
 	author = "soft as HELL",
 	description = "Removes ghost as soon as it's captured",
-	version = "2.0.2",
+	version = "2.0.3",
 	url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -198,13 +198,11 @@ void UnEquipGhost(int client)
 
 void RemoveGhost()
 {
-	if (ghost == INVALID_ENT_REFERENCE)
+	int ghost_index = EntRefToEntIndex(ghost);
+	if (ghost_index == INVALID_ENT_REFERENCE)
 	{
 		return;
 	}
 
-	if (AcceptEntityInput(ghost, "Kill"))
-	{
-		ghost = INVALID_ENT_REFERENCE;
-	}
+	AcceptEntityInput(ghost_index, "Kill");
 }
