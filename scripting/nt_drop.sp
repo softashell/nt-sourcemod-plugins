@@ -19,7 +19,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.7.6",
+	version = "0.8.0",
 	url = ""
 }
 
@@ -32,6 +32,8 @@ char weapon_blacklist[][] = {
 };
 
 float g_fLastWeaponUse[NEO_MAX_PLAYERS+1], g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
+
+ConVar g_cNoDespawn;
 
 public void OnPluginStart()
 {
@@ -52,6 +54,10 @@ public void OnPluginStart()
 
 	// Clean up dead weapons
 	CreateTimer(60.0, WipeDeadWeapons, _, TIMER_REPEAT);
+
+	g_cNoDespawn = CreateConVar("sm_ntdrop_nodespawn", "1",
+		"Whether to disallow weapons to de-spawn after 30 seconds (as is NT default)",
+		_, true, 0.0, true, 1.0);
 }
 
 public void OnClientPutInServer(int client)
@@ -168,8 +174,13 @@ public void OnWeaponDrop(int client, int weapon)
 	// Convert index to entity reference
 	weapon = EntIndexToEntRef(weapon);
 
-	// Have to delay spawnflag setting for a bit
-	CreateTimer(0.1, ChangeSpawnFlags, weapon);
+	// If want to prevent this gun from de-spawning from the world after 30 secs,
+	// which is the default NT behaviour for guns lying around
+	if (g_cNoDespawn.BoolValue)
+	{
+		// Have to delay spawnflag setting for a bit
+		CreateTimer(0.1, ChangeSpawnFlags, weapon);
+	}
 
 	if(IsPlayerAlive(client))
 	{
