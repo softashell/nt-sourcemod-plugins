@@ -25,6 +25,7 @@ Removes ghost when round has ended to prevent double capping
 nt_drop
 ====================
 - Keeps weapons on ground all round.
+	- Can be toggled with cvar: **sm_ntdrop_nodespawn** - Whether weapons' spawnflags are adjusted to prevent the weapon from disappearing from the world after 30 seconds
 - Drops weapons with all spare ammo.
 - Disables ammo pick up from dropped weapons.
 - Enables weapon pick up and switch with +use
