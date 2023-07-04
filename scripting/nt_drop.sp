@@ -19,7 +19,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.8.0",
+	version = "0.8.1",
 	url = ""
 }
 
@@ -73,7 +73,7 @@ public void OnClientPutInServer(int client)
 	g_fLastWeaponSwap[client] = 0.0;
 }
 
-public Action OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
+public void OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
@@ -321,7 +321,7 @@ public Action TakeWeapon(Handle timer, DataPack pack)
 public Action ChangeSpawnFlags(Handle timer, int weapon)
 {
 	if(!IsValidEdict(weapon))
-		return;
+		return Plugin_Stop;
 
 	// Prepare spawnflags datamap offset
 	static int spawnflags;
@@ -334,6 +334,8 @@ public Action ChangeSpawnFlags(Handle timer, int weapon)
 
 	// Remove SF_NORESPAWN flag from m_spawnflags datamap
 	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
+
+	return Plugin_Stop;
 }
 
 bool IsWeaponDroppable(const char[] classname)
@@ -388,6 +390,8 @@ public Action WipeDeadWeapons(Handle timer)
 	#if DEBUG > 0
 	PrintToServer("Removed %d dead weapons", removed);
 	#endif
+
+	return Plugin_Continue;
 }
 
 #if DEBUG > 0

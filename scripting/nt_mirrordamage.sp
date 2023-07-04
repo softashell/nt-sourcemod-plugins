@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.6.3"
+#define PLUGIN_VERSION	"0.6.4"
 
 // How much of applied damage attacker recieves (maximum is x4.0)
 #define FF_FEEDBACK_ON 2.0 //Attacker takes double damage
@@ -29,8 +29,8 @@ new bool:MirrorEnabled = false;
 
 public OnPluginStart()
 {
-	CreateConVar("sm_ntmirrordamage_version", PLUGIN_VERSION, "NEOTOKYO° Mirror team damage timer", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
-	
+	CreateConVar("sm_ntmirrordamage_version", PLUGIN_VERSION, "NEOTOKYO° Mirror team damage timer", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+
 	HookEvent("game_round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("game_round_end", Event_RoundEnd, EventHookMode_Post);
 
@@ -128,12 +128,12 @@ stock bool:IsValidClient(client)
 {
 	if ((client < 1) || (client > MaxClients))
 		return false;
-	
+
 	if (!IsClientInGame(client))
 		return false;
-	
+
 	if (IsFakeClient(client))
 		return false;
-	
+
 	return true;
 }

@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION	"0.3"
+#define PLUGIN_VERSION	"0.3.1"
 
 public Plugin:myinfo =
 {
@@ -57,7 +57,7 @@ new String:PlayerNames[][] = {
 
 public OnPluginStart()
 {
-	CreateConVar("sm_ntnoobname_version", PLUGIN_VERSION, "NEOTOKYO° Noob renamer version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("sm_ntnoobname_version", PLUGIN_VERSION, "NEOTOKYO° Noob renamer version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 }
 
 public OnClientConnected(client)
@@ -72,7 +72,7 @@ public OnClientConnected(client)
 
 		new prefnum = GetRandomInt(0, sizeof(Prefixes)-1);
 		new namenum, count;
-		do 
+		do
 		{
 			count++;
 			namenum = GetRandomInt(0, sizeof(PlayerNames)-1);
@@ -81,18 +81,18 @@ public OnClientConnected(client)
 
 			if(count >= sizeof(PlayerNames))
 				break; // Somehow we managed to use all names already just give up
-		} 
-		while(IsNameTaken(PlayerNames[namenum][0]));
+		}
+		while(IsNameTaken(PlayerNames[namenum]));
 
 		Format(newname, sizeof(newname), "%s%s", Prefixes[prefnum], PlayerNames[namenum]);
-		
+
 		ClientCommand(client, "name %s", newname);
 
 		PrintToServer("Renaming %s to %s", name, newname);
 	}
 }
 
-public bool:IsNameTaken(String:name[64])
+public bool:IsNameTaken(const char[] name)
 {
 	decl String:_name[64];
 

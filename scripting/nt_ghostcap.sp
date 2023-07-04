@@ -12,7 +12,7 @@
 #define INACCURACY 0.35
 #define ROUND_END 3
 
-#define PLUGIN_VERSION	"1.10.0"
+#define PLUGIN_VERSION	"1.10.1"
 
 public Plugin myinfo =
 {
@@ -211,10 +211,10 @@ public void OnGameFrame()
 public Action CheckGhostPosition(Handle timer)
 {
 	if(!totalCapzones || !IsValidEdict(ghost))
-		return; // No capzones or no ghost
+		return Plugin_Continue; // No capzones or no ghost
 
 	if(HasRoundEnded())
-		return;
+		return Plugin_Continue;
 
 	int capzone, carrier, carrierTeamID;
 	float ghostVector[3], distance;
@@ -222,7 +222,7 @@ public Action CheckGhostPosition(Handle timer)
 	carrier = GetEntPropEnt(ghost, Prop_Data, "m_hOwnerEntity");
 
 	if(!IsValidClient(carrier) || !IsPlayerAlive(carrier))
-		return;
+		return Plugin_Continue;
 
 	carrierTeamID = GetClientTeam(carrier);
 	GetClientAbsOrigin(carrier, ghostVector);
@@ -259,6 +259,8 @@ public Action CheckGhostPosition(Handle timer)
 			break;
 		}
 	}
+
+	return Plugin_Continue;
 }
 
 bool IsAnyEnemyStillAlive(int team)

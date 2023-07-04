@@ -44,13 +44,13 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		hPlayerCounter = CreateTimer(1.0, CountPlayers);
 }
 
-public Action:CountPlayers(Handle:timer)
+public Action CountPlayers(Handle timer)
 {
-	new client, countTotal, countJin, countNsf, lastJin, lastNsf;
+	new countTotal, countJin, countNsf, lastJin, lastNsf;
 
 	hPlayerCounter = INVALID_HANDLE;
 
-	for(client = 1; client <= MaxClients; client++)
+	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(!IsValidClient(client))
 			continue;
@@ -83,51 +83,60 @@ public Action:CountPlayers(Handle:timer)
 	if(countJin == 1 && countNsf == 1)
 	{
 		if(countTotal <= 2)
-			return;
-			
-		CreateTimer(3.0, LastManStanding, lastNsf);
-		CreateTimer(3.0, LastManStanding, lastJin);
-		return;
+			return Plugin_Stop;
+
+		CreateTimer(3.0, LastManStanding, GetClientUserId(lastNsf));
+		CreateTimer(3.0, LastManStanding, GetClientUserId(lastJin));
+		return Plugin_Stop;
+#if(0)
 		//Duel(lastJin);
 		//Duel(lastNsf);
+#endif
 	}
 	else if(countJin >= 2)
 	{
 		if(countNsf == 1)
 		{
-			CreateTimer(3.0, LastManStanding, lastNsf);
+			CreateTimer(3.0, LastManStanding, GetClientUserId(lastNsf));
 		}
 	}
 	else if (countNsf >= 2)
 	{
 		if(countJin == 1)
 		{
-			CreateTimer(3.0, LastManStanding, lastJin);
+			CreateTimer(3.0, LastManStanding, GetClientUserId(lastJin));
 		}
 	}
+
+	return Plugin_Stop;
 }
 
-public Action LastManStanding(Handle timer, int client)
+public Action LastManStanding(Handle timer, int userid)
 {
-	if(!IsPlayerAlive(client) || g_MessageShownLast[client])
-		return;
+	int client = GetClientOfUserId(userid);
+
+	if(client == 0 || !IsPlayerAlive(client) || g_MessageShownLast[client])
+		return Plugin_Stop;
 
 	PrintToChat(client, MESSAGE_LASTMAN);
 
 	g_MessageShownLast[client] = true;
+
+	return Plugin_Stop;
 }
 
-public Action Event_PlayerDisconnect(Handle event, const char[] name, bool dontBroadcast)
+public void Event_PlayerDisconnect(Handle event, const char[] name, bool dontBroadcast)
 {
 	if(hPlayerCounter == INVALID_HANDLE)
 		hPlayerCounter = CreateTimer(0.1, CountPlayers);
-	
+
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_MessageShownLast[client] = false;
 }
 
-
-Duel(client)
+#if(0)
+void Duel(client)
 {
 	PrintToChat(client, MESSAGE_DUEL);
 }
+#endif

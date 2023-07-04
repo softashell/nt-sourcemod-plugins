@@ -12,7 +12,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.3",
+    version = "0.7.4",
     url = ""
 };
 
@@ -57,7 +57,7 @@ public void OnClientPutInServer(int client)
 	g_PlayerClass[client] = CLASS_NONE;
 }
 
-public Action OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
+public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client, victim;
 
@@ -97,7 +97,7 @@ public Action OnPlayerSpawnPost(Handle timer, int userid)
 	int client = GetClientOfUserId(userid);
 
 	if(!IsValidClient(client) || GetClientTeam(client) <= TEAM_SPECTATOR)
-		return;
+		return Plugin_Stop;
 
 	g_PlayerClass[client] = GetPlayerClass(client);
 	g_PlayerHealth[client] = GetClientHealth(client);
@@ -105,9 +105,11 @@ public Action OnPlayerSpawnPost(Handle timer, int userid)
 	#if DEBUG > 0
 	PrintToChatAll("[OnPlayerSpawnPost] Player %N (%d) spawned with class %d and %d health", client, client, g_PlayerClass[client], g_PlayerHealth[client]);
 	#endif
+
+	return Plugin_Stop;
 }
 
-public Action OnPlayerHurt(Handle event, const char[] name, bool dontBroadcast)
+public void OnPlayerHurt(Handle event, const char[] name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));

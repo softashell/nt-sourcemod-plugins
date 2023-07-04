@@ -2,7 +2,7 @@
  NEOTOKYO° Warmup Deathmatch
 
  Plugin licensed under the GPLv3
- 
+
  Coded by Agiel and soft as HELL.
 **************************************************************/
 
@@ -18,7 +18,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Warmup",
     author = "Agiel, soft as HELL",
     description = "Enables TDM after map change for a few minutes",
-    version = "1.1",
+    version = "1.1.1",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -91,16 +91,17 @@ public void OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 {
 	if(bWarmupEnabled)
 	{
-		int client = GetClientOfUserId(GetEventInt(event, "userid"));
+		int userid = GetEventInt(event, "userid");
+		int client = GetClientOfUserId(userid);
 
-		if(GetClientTeam(client) > 1)
+		if(GetClientTeam(client) > TEAM_SPECTATOR)
 		{
-			CreateTimer(0.1, timer_GetHealth, client);
-			
+			CreateTimer(0.1, timer_GetHealth, GetClientUserId(client));
+
 			//Enable Protection on the client
 			clientProtected[client] = true;
 
-			CreateTimer(cWarmupProtection.FloatValue, timer_PlayerProtect, client);
+			CreateTimer(cWarmupProtection.FloatValue, timer_PlayerProtect, userid);
 		}
 	}
 }
@@ -118,19 +119,27 @@ public void OnPlayerHurt(Handle event, const char[] name, bool dontBroadcast)
 }
 
 //Get the player's health after they spawn
-public Action timer_GetHealth(Handle timer, int client)
+public Action timer_GetHealth(Handle timer, int userid)
 {
-	if(IsClientConnected(client) && IsClientInGame(client))
+	int client = GetClientOfUserId(userid);
+
+	if(client != 0)
 	{
 		clientHP[client] = GetClientHealth(client);
 	}
+
+	return Plugin_Stop;
 }
 
 //Player protection expires
-public Action timer_PlayerProtect(Handle timer, int client)
+public Action timer_PlayerProtect(Handle timer, int userid)
 {
+	int client = GetClientOfUserId(userid);
+
 	//Disable protection on the Client
 	clientProtected[client] = false;
+
+	return Plugin_Stop;
 }
 
 public Action timer_EndWarmup(Handle timer)
@@ -138,7 +147,7 @@ public Action timer_EndWarmup(Handle timer)
 	bWarmupEnabled = false;
 
 	if(!ShouldRestartMatch())
-		return;
+		return Plugin_Stop;
 
 	PrintToChatAll("Warmup ended!");
 
@@ -154,11 +163,15 @@ public Action timer_EndWarmup(Handle timer)
 	}
 
 	CreateTimer(1.0, timer_RestartMatch);
+
+	return Plugin_Stop;
 }
 
 public Action timer_RestartMatch(Handle timer)
 {
 	cRestartCommand.SetInt(1);
+
+	return Plugin_Stop;
 }
 
 bool ShouldRestartMatch()

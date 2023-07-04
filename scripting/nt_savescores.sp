@@ -9,7 +9,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.5",
+    version = "0.5.1",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -64,6 +64,8 @@ public Action ResetScoresNextRound(Handle timer)
 	bResetScores = true;
 
 	hResetScoresTimer = INVALID_HANDLE;
+
+	return Plugin_Stop;
 }
 
 public void OnClientPutInServer(int client)
@@ -87,25 +89,30 @@ public Action cmd_JoinTeam(int client, const char[] command, int argc)
 	GetCmdArgString(cmd, sizeof(cmd));
 
 	if(!IsValidClient(client))
-		return;
+		return Plugin_Continue;
 
 	if(IsPlayerAlive(client))
-		return; // Alive player switching team, should never happen when you just connect
+	{
+		// Alive player switching team, should never happen when you just connect
+		return Plugin_Continue;
+	}
 
 	int team_current = GetClientTeam(client);
 	int team_target = StringToInt(cmd);
 
 	if(team_current == team_target && team_target != 0 && team_current != 0)
-		return; // Trying to join same team
+		return Plugin_Continue; // Trying to join same team
 
 	// Score isn't loaded from DB yet
 	if(!bScoreLoaded[client])
 		DB_retrieveScore(client);
 
 	g_bHasJoinedATeam[client] = true;
+
+	return Plugin_Continue;
 }
 
-public Action event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
+public void event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	if(!bResetScores)
 		return;
@@ -118,7 +125,7 @@ public Action event_RoundStart(Handle event, const char[] name, bool dontBroadca
 void DB_init()
 {
 	char error[255], buffer[50];
-	
+
 	GetConVarString(hScoreDatabase, buffer, sizeof(buffer));
 
 	hDB = SQLite_UseDatabase(buffer, error, sizeof(error));
