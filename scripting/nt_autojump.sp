@@ -1,3 +1,5 @@
+#include <sourcemod>
+
 #pragma semicolon 1
 
 public Plugin:myinfo =
@@ -5,7 +7,7 @@ public Plugin:myinfo =
 	name = "NEOTOKYO° Jump Queuing",
 	author = "soft as HELL",
 	description = "Jump as soon as you land",
-	version = "0.1",
+	version = "0.1.1",
 	url = ""
 };
 
@@ -16,7 +18,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 {
 	if(!IsPlayerAlive(client))
 	{
-		return; // Nothing to do with spooky skeletons
+		return Plugin_Continue; // Nothing to do with spooky skeletons
 	}
 
 	// Pressing jump
@@ -25,7 +27,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		{
 			if(GetEntityMoveType(client) & MOVETYPE_LADDER)
 			{
-				return; // Do nothing on ladder
+				return Plugin_Continue; // Do nothing on ladder
 			}
 
 			if(GetEntityFlags(client) & FL_ONGROUND)
@@ -61,4 +63,5 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		g_bJumpHeld[client] = false;
 		g_bJumped[client] = false;
 	}
+	return Plugin_Continue;
 }

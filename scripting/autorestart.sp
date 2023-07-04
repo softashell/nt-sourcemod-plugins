@@ -12,7 +12,7 @@ public const Plugin myinfo =
 	name = "AutoRestart",
 	author = "MikeJS, soft as HELL",
 	description = "Automatically restarts the server when it's empty.",
-	version = "1.5.2",
+	version = "1.5.3",
 	url = "http://forums.alliedmods.net/showthread.php?t=87291",
 }
 
@@ -28,7 +28,7 @@ public Action CheckRestart(Handle timer)
 {
 	if(!cvarEnabled.BoolValue || IsAnyoneConnected())
 	{
-		return;
+		return Plugin_Continue;
 	}
 
 	char path[PLATFORM_MAX_PATH];
@@ -36,7 +36,7 @@ public Action CheckRestart(Handle timer)
 
 	bool read = false;
 	int lastRestart = 0;
-	
+
 	File file = OpenFile(path, "r");
 	if(file != INVALID_HANDLE)
 	{
@@ -47,7 +47,7 @@ public Action CheckRestart(Handle timer)
 	if(!read)
 	{
 		// Probably first time starting the plugin
-		LogMessage("Couldn't read timestamp from %s", path); 
+		LogMessage("Couldn't read timestamp from %s", path);
 	}
 
 	int currentTime = GetTime();
@@ -56,7 +56,7 @@ public Action CheckRestart(Handle timer)
 	// Is it too early to restart?
 	if(currentTime < nextRestart && currentTime > lastRestart)
 	{
-		return;
+		return Plugin_Continue;
 	}
 
 	bool written = false;
@@ -73,7 +73,7 @@ public Action CheckRestart(Handle timer)
 	if(!written)
 	{
 		LogError("Couldn't write timestamp to %s.", path);
-		return;
+		return Plugin_Continue;
 	}
 
 	// ｷﾀ━━━━━━(ﾟ∀ﾟ)━━━━━━ !!!!!
@@ -82,6 +82,7 @@ public Action CheckRestart(Handle timer)
 	// Doesn't actually restart but crashes the server just like any of the shutdown commands in neotokyo
 	// So this will most likely not work unless you have external script to auto start the server if it dies
 	ServerCommand("_restart");
+	return Plugin_Continue;
 }
 
 bool IsAnyoneConnected()
