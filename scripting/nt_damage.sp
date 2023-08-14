@@ -12,21 +12,21 @@ public Plugin myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.4",
+    version = "0.7.5",
     url = ""
 };
 
 ConVar g_Cvar_AssistsEnabled, g_Cvar_AssistMode, g_Cvar_AssistDamage, g_Cvar_AssistPoints;
 
-bool g_SeenReport[MAXPLAYERS+1];
+bool g_SeenReport[NEO_MAXPLAYERS+1];
 
-int g_PlayerClass[MAXPLAYERS+1], g_PlayerHealth[MAXPLAYERS+1], g_PlayerAssist[MAXPLAYERS+1];
+int g_PlayerClass[NEO_MAXPLAYERS+1], g_PlayerHealth[NEO_MAXPLAYERS+1], g_PlayerAssist[NEO_MAXPLAYERS+1];
 
-int g_DamageDealt[MAXPLAYERS+1][MAXPLAYERS+1];
-int g_HitsMade[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_DamageDealt[NEO_MAXPLAYERS+1][NEO_MAXPLAYERS+1];
+int g_HitsMade[NEO_MAXPLAYERS+1][NEO_MAXPLAYERS+1];
 
-int g_DamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
-int g_HitsTaken[MAXPLAYERS+1][MAXPLAYERS+1];
+int g_DamageTaken[NEO_MAXPLAYERS+1][NEO_MAXPLAYERS+1];
+int g_HitsTaken[NEO_MAXPLAYERS+1][NEO_MAXPLAYERS+1];
 
 char class_names[][] = {
 	"-",
