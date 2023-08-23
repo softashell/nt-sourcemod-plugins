@@ -203,19 +203,20 @@ void DB_retrieveScore(int client)
 
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
 
-	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, client);
+	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, GetClientUserId(client));
 }
 
-public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] error, int client)
+public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] error, int userid)
 {
+	int client = GetClientOfUserId(userid);
+	if (client == 0)
+		return;
+
 	if (hndl == INVALID_HANDLE)
 	{
 		LogError("SQL Error: %s", error);
 		return;
 	}
-
-	if(!IsValidClient(client))
-		return;
 
 	if (SQL_GetRowCount(hndl) == 0)
 		return;
