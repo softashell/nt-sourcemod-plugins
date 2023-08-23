@@ -9,7 +9,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.5.2",
+    version = "0.5.3",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
