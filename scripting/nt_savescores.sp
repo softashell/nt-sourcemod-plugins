@@ -165,7 +165,11 @@ void DB_insertScore(int client)
 
 	Format(query, sizeof(query), "INSERT OR REPLACE INTO nt_saved_score VALUES ('%s', %d, %d);", steamID, xp, deaths);
 
+	SQL_LockDatabase(hDB);
+
 	SQL_FastQuery(hDB, query);
+
+	SQL_UnlockDatabase(hDB);
 }
 
 void DB_deleteScore(int client)
@@ -179,7 +183,11 @@ void DB_deleteScore(int client)
 
 	Format(query, sizeof(query), "DELETE FROM nt_saved_score WHERE steamID = '%s';", steamID);
 
+	SQL_LockDatabase(hDB);
+
 	SQL_FastQuery(hDB, query);
+
+	SQL_UnlockDatabase(hDB);
 }
 
 void DB_retrieveScore(int client)
