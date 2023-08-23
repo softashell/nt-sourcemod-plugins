@@ -9,7 +9,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.5.1",
+    version = "0.5.3",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -165,7 +165,11 @@ void DB_insertScore(int client)
 
 	Format(query, sizeof(query), "INSERT OR REPLACE INTO nt_saved_score VALUES ('%s', %d, %d);", steamID, xp, deaths);
 
+	SQL_LockDatabase(hDB);
+
 	SQL_FastQuery(hDB, query);
+
+	SQL_UnlockDatabase(hDB);
 }
 
 void DB_deleteScore(int client)
@@ -179,7 +183,11 @@ void DB_deleteScore(int client)
 
 	Format(query, sizeof(query), "DELETE FROM nt_saved_score WHERE steamID = '%s';", steamID);
 
+	SQL_LockDatabase(hDB);
+
 	SQL_FastQuery(hDB, query);
+
+	SQL_UnlockDatabase(hDB);
 }
 
 void DB_retrieveScore(int client)
@@ -195,21 +203,25 @@ void DB_retrieveScore(int client)
 
 	Format(query, sizeof(query), "SELECT * FROM	nt_saved_score WHERE steamID = '%s';", steamID);
 
-	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, client);
+	SQL_TQuery(hDB, DB_retrieveScoreCallback, query, GetClientUserId(client));
 }
 
-public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] error, int client)
+public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] error, int userid)
 {
+	int client = GetClientOfUserId(userid);
+	if (client == 0)
+		return;
+
 	if (hndl == INVALID_HANDLE)
 	{
 		LogError("SQL Error: %s", error);
 		return;
 	}
 
-	if(!IsValidClient(client))
+	if (SQL_GetRowCount(hndl) == 0)
 		return;
 
-	if (SQL_GetRowCount(hndl) == 0)
+	if (!SQL_FetchRow(hndl))
 		return;
 
 	int xp = SQL_FetchInt(hndl, 1);
