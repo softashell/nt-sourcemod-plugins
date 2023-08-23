@@ -9,7 +9,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Temporary score saver",
     author = "soft as HELL",
     description = "Saves score when player disconnects and restores it if player connects back before map change",
-    version = "0.5.1",
+    version = "0.5.2",
     url = "https://github.com/softashell/nt-sourcemod-plugins"
 };
 
@@ -210,6 +210,9 @@ public void DB_retrieveScoreCallback(Handle owner, Handle hndl, const char[] err
 		return;
 
 	if (SQL_GetRowCount(hndl) == 0)
+		return;
+
+	if (!SQL_FetchRow(hndl))
 		return;
 
 	int xp = SQL_FetchInt(hndl, 1);
