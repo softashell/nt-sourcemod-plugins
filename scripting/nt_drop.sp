@@ -19,7 +19,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.8.1",
+	version = "0.8.2",
 	url = ""
 }
 
@@ -333,7 +333,7 @@ public Action ChangeSpawnFlags(Handle timer, int weapon)
 	}
 
 	// Remove SF_NORESPAWN flag from m_spawnflags datamap
-	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
+	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN, true);
 
 	return Plugin_Stop;
 }
