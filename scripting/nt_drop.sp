@@ -333,7 +333,7 @@ public Action ChangeSpawnFlags(Handle timer, int weapon)
 	}
 
 	// Remove SF_NORESPAWN flag from m_spawnflags datamap
-	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
+	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN, true);
 
 	return Plugin_Stop;
 }
