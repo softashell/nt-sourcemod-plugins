@@ -32,7 +32,10 @@ char weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-float g_fLastWeaponUse[NEO_MAX_PLAYERS+1], g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
+#if ENABLE_USE
+float g_fLastWeaponUse[NEO_MAX_PLAYERS+1];
+#endif
+float g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
 
 ConVar g_cNoDespawn;
 
@@ -79,7 +82,9 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
 	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
 
+	#if ENABLE_USE
 	g_fLastWeaponUse[client] = 0.0;
+	#endif
 	g_fLastWeaponSwap[client] = 0.0;
 }
 
