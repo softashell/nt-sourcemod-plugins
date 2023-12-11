@@ -19,7 +19,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.8.4",
+	version = "0.8.3",
 	url = ""
 }
 
@@ -321,10 +321,6 @@ public Action TakeWeapon(Handle timer, DataPack pack)
 public Action ChangeSpawnFlags(Handle timer, int weapon)
 {
 	if(!IsValidEdict(weapon))
-		return Plugin_Stop;
-
-	// Someone's already picked it up!
-	if (GetEntPropEnt(weapon, Prop_Data, "m_hOwnerEntity") != -1)
 		return Plugin_Stop;
 
 	// Prepare spawnflags datamap offset
