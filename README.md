@@ -28,7 +28,9 @@ nt_drop
 	- Can be toggled with cvar: **sm_ntdrop_nodespawn** - Whether weapons' spawnflags are adjusted to prevent the weapon from disappearing from the world after 30 seconds
 - Drops weapons with all spare ammo.
 - Disables ammo pick up from dropped weapons.
-- Enables weapon pick up and switch with +use
+- Optionally enables weapon pick up and switch with +use (compile with `ENABLE_USE` preprocessor flag set as true)
+- Works out of the box for SourceMod version 1.11 or newer
+	- **SourceMod 1.10 or older**: You need the correct version of [the DHooks extension](https://forums.alliedmods.net/showpost.php?p=2588686) for your SM version!
 
 nt_autojump
 ====================

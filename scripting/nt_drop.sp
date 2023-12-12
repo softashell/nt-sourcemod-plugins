@@ -1,12 +1,13 @@
+#include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
+#include <dhooks>
 #include <neotokyo>
 
 #pragma semicolon 1
 #pragma newdecls required
 
 #define DEBUG 0
-#define SF_NORESPAWN (1 << 30)
 #define EF_NODRAW 32
 
 #define NEO_MAX_PLAYERS 32
@@ -19,7 +20,7 @@ public Plugin myinfo =
 	name = "NEOTOKYO° Weapon Drop Tweaks",
 	author = "soft as HELL",
 	description = "Drops weapon with ammo and disables ammo pickup",
-	version = "0.8.3",
+	version = "0.8.4",
 	url = ""
 }
 
@@ -31,12 +32,24 @@ char weapon_blacklist[][] = {
 	"weapon_ghost"
 };
 
-float g_fLastWeaponUse[NEO_MAX_PLAYERS+1], g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
+#if ENABLE_USE
+float g_fLastWeaponUse[NEO_MAX_PLAYERS+1];
+#endif
+float g_fLastWeaponSwap[NEO_MAX_PLAYERS+1];
 
 ConVar g_cNoDespawn;
 
+DynamicHook g_hDh = null;
+
 public void OnPluginStart()
 {
+	g_hDh = new DynamicHook(202, HookType_Entity, ReturnType_Void,
+		ThisPointer_CBaseEntity);
+	if (g_hDh == null)
+	{
+		SetFailState("Failed to create dynamic hook");
+	}
+
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 
 	// Hook again if plugin is restarted
@@ -69,8 +82,21 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquip);
 	SDKHook(client, SDKHook_WeaponDropPost, OnWeaponDrop);
 
+	#if ENABLE_USE
 	g_fLastWeaponUse[client] = 0.0;
+	#endif
 	g_fLastWeaponSwap[client] = 0.0;
+}
+
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if (IsWeapon(entity))
+	{
+		if (g_hDh.HookEntity(Hook_Pre, entity, SetPickupTouch) == INVALID_HOOK_ID)
+		{
+			SetFailState("Failed to hook %d (%s)", entity, classname);
+		}
+	}
 }
 
 public void OnPlayerDeath(Handle event, const char[] name, bool dontBroadcast)
@@ -173,14 +199,6 @@ public void OnWeaponDrop(int client, int weapon)
 
 	// Convert index to entity reference
 	weapon = EntIndexToEntRef(weapon);
-
-	// If want to prevent this gun from de-spawning from the world after 30 secs,
-	// which is the default NT behaviour for guns lying around
-	if (g_cNoDespawn.BoolValue)
-	{
-		// Have to delay spawnflag setting for a bit
-		CreateTimer(0.1, ChangeSpawnFlags, weapon);
-	}
 
 	if(IsPlayerAlive(client))
 	{
@@ -318,24 +336,9 @@ public Action TakeWeapon(Handle timer, DataPack pack)
 }
 #endif
 
-public Action ChangeSpawnFlags(Handle timer, int weapon)
+bool IsWeapon(int entity)
 {
-	if(!IsValidEdict(weapon))
-		return Plugin_Stop;
-
-	// Prepare spawnflags datamap offset
-	static int spawnflags;
-
-	// Try to find datamap offset for m_spawnflags property
-	if(!spawnflags && (spawnflags = FindDataMapInfo(weapon, "m_spawnflags")) == -1)
-	{
-		ThrowError("Failed to obtain offset: \"m_spawnflags\"!");
-	}
-
-	// Remove SF_NORESPAWN flag from m_spawnflags datamap
-	SetEntData(weapon, spawnflags, GetEntData(weapon, spawnflags) & ~SF_NORESPAWN);
-
-	return Plugin_Stop;
+	return HasEntProp(entity, Prop_Send, "m_iPrimaryAmmoType");
 }
 
 bool IsWeaponDroppable(const char[] classname)
@@ -349,6 +352,31 @@ bool IsWeaponDroppable(const char[] classname)
 	}
 
 	return true;
+}
+
+// This supercedes CBaseCombatWeapon::SetPickupTouch, only setting the touch
+// function, and skipping the SetThink SUB_Remove path.
+// In case you're wondering why we're not simply toggling the SF_NORESPAWN
+// flag, there's a strange issue here where repeatedly picking up and dropping
+// a gun can cause this dataprop state to go out of sync somehow, which results
+// in unintended weapon duplication, which can be abused by players.
+// Whatever the underlying issue with SF_NORESPAWN here was, leaving that value
+// alone and doing some memory magic seems to get what we want, so that's what
+// we're doing here.
+public MRESReturn SetPickupTouch(int wep)
+{
+	// Whether to prevent this gun from despawning from the world after 30 sec,
+	// which would be the default NT behaviour for guns lying around.
+	if (g_cNoDespawn.BoolValue)
+	{
+		// Equivalent of SetTouch(&CBaseCombatWeapon::DefaultTouch),
+		// which is the unconditional part of the original subroutine.
+		StoreToAddress(GetEntityAddress(wep) + view_as<Address>(0x70),
+			0x220e28c0, NumberType_Int32);
+		// ...but supercede the rest, so we don't set a SUB_Remove think!
+		return MRES_Supercede;
+	}
+	return MRES_Ignored;
 }
 
 public Action WipeDeadWeapons(Handle timer)
