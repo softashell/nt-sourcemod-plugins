@@ -365,13 +365,15 @@ bool IsWeaponDroppable(const char[] classname)
 // we're doing here.
 public MRESReturn SetPickupTouch(int wep)
 {
-	// If want to prevent this gun from de-spawning from the world after 30 secs,
-	// which is the default NT behaviour for guns lying around
+	// Whether to prevent this gun from despawning from the world after 30 sec,
+	// which would be the default NT behaviour for guns lying around.
 	if (g_cNoDespawn.BoolValue)
 	{
-		// Equivalent of SetTouch(&CBaseCombatWeapon::DefaultTouch)
+		// Equivalent of SetTouch(&CBaseCombatWeapon::DefaultTouch),
+		// which is the unconditional part of the original subroutine.
 		StoreToAddress(GetEntityAddress(wep) + view_as<Address>(0x70),
 			0x220e28c0, NumberType_Int32);
+		// ...but supercede the rest, so we don't set a SUB_Remove think!
 		return MRES_Supercede;
 	}
 	return MRES_Ignored;
