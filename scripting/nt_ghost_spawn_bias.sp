@@ -6,7 +6,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define DEBUG 1
+#define DEBUG 0
 #define MAXGHOSTSPAWNS 32
 
 #define PLUGIN_VERSION	"0.1.0"
@@ -22,17 +22,33 @@ public Plugin myinfo =
 
 // Globals
 int ghost;
+int nextSpawn;
+int roundCounter;
+bool nextSpawnChanged;
+
+
 
 int ghostSpawnPoints;
 int ghostSpawnEntity[MAXGHOSTSPAWNS+1];
 float ghostSpawnOrigin[MAXGHOSTSPAWNS+1][3];
 float ghostSpawnRotation[MAXGHOSTSPAWNS+1][3];
 
+Handle hRestartGame;
+ConVar cvarBiasEnabled, cvarBiasMoveRounds;
+
 public void OnPluginStart()
 {
 	CreateConVar("sm_nt_ghost_bias_version", PLUGIN_VERSION, "NEOTOKYO° Ghost spawn bias version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	cvarBiasEnabled = CreateConVar("sm_nt_ghost_bias_enabled", "1", "Enable/Disable ghost spawn bias", _, true, 0.0, true, 1.0);
+	cvarBiasMoveRounds = CreateConVar("sm_nt_ghost_bias_rounds", "2", "Move ghost every X rounds", _, true, 1.0, true, 4.0);
 
 	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
+
+	hRestartGame = FindConVar("neo_restart_this");
+	if(hRestartGame != INVALID_HANDLE)
+	{
+		HookConVarChange(hRestartGame, OnGameRestart);
+	}
 
 	#if DEBUG > 0
 	RegConsoleCmd("nt_ghost_randomize", CommandMoveGhost);
@@ -48,18 +64,36 @@ public Action CommandMoveGhost(int client, int args)
 }
 #endif
 
+public void OnGameRestart(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	if(StringToInt(newValue) == 0)
+		return; // Not restarting
+
+	ResetVariables();
+}
+
 public void OnMapEnd()
 {
+	ResetVariables();
+}
+
+public void ResetVariables()
+{
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Map ended, resetting everything");
+	PrintToServer("[nt_ghost_spawn_bias] Resetting everything");
 	#endif
 
 	ghost = -1;
 	ghostSpawnPoints = 0;
+	nextSpawnChanged = false;
+	roundCounter = 0;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+	if(!cvarBiasEnabled.BoolValue)
+		return;
+
 	if(StrEqual(classname, "weapon_ghost"))
 	{
 		#if DEBUG > 0
@@ -67,8 +101,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 		#endif
 
 		ghost = EntIndexToEntRef(entity);
-
-		CheckSpawnedGhost(entity);
 	}
 	else if(StrEqual(classname, "neo_ghostspawnpoint"))
 	{
@@ -78,28 +110,77 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 		AddGhostSpawn(entity);
 	}
-	else if(StrEqual(classname, "info_player_attacker"))
-	{
-		#if DEBUG > 0
-		PrintToServer("[nt_ghost_spawn_bias] Attacker spawn point created %d", entity);
-		#endif
-	}
-	else if(StrEqual(classname, "info_player_defender"))
-	{
-		#if DEBUG > 0
-		PrintToServer("[nt_ghost_spawn_bias] Defender spawn point created %d", entity);
-		#endif
-	}
 }
 
-void CheckSpawnedGhost(int entity)
+void CheckSpawnedGhost(int ghostRef)
 {
-	if(!ghostSpawnPoints)
+	if(!ghostSpawnPoints || !IsValidEntity(ghost))
 	{
 		return;
 	}
 
-	// TODO: Find source spawn point and figure out if it needs moving
+	CreateTimer(0.5, CheckSpawnedGhost_Post, ghostRef);
+}
+
+public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
+{
+	int entity = EntRefToEntIndex(ghostRef);
+
+	float entitySpawnOrigin[3];
+	float entitytSpawnRotation[3];
+
+	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", entitySpawnOrigin);
+	GetEntPropVector(entity, Prop_Data, "m_angRotation", entitytSpawnRotation);
+
+	#if DEBUG > 0
+	PrintToServer("[nt_ghost_spawn_bias] Ghost spawn post!! #%d - Location: {%.0f, %.0f, %.0f}", entity, entitySpawnOrigin[0], entitySpawnOrigin[1], entitySpawnOrigin[2]);
+	#endif
+
+	int closestSpawn = -1;
+	float closestDistance = -1.0;
+	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
+	{
+		float distance = GetVectorDistance(entitySpawnOrigin, ghostSpawnOrigin[spawn]);
+		if(distance < closestDistance  || closestSpawn == -1)
+		{
+			closestSpawn = spawn;
+			closestDistance = distance;
+		}
+
+		#if DEBUG > 1
+		PrintToServer("[nt_ghost_spawn_bias] Checking closest spawn #%d Distance: %.0f - Location: {%.0f, %.0f, %.0f}", spawn, distance, ghostSpawnOrigin[spawn][0], ghostSpawnOrigin[spawn][1], ghostSpawnOrigin[spawn][2]);
+		#endif
+	}
+
+	if(closestSpawn != -1.0)
+	{
+		#if DEBUG > 0
+		PrintToServer("[nt_ghost_spawn_bias] Found closest spawn #%d Distance: %.0f - Location: {%.0f, %.0f, %.0f}", closestSpawn, closestDistance, ghostSpawnOrigin[closestSpawn][0], ghostSpawnOrigin[closestSpawn][1], ghostSpawnOrigin[closestSpawn][2]);
+		#endif
+
+		if(closestSpawn != nextSpawn)
+		{
+			#if DEBUG > 0
+			PrintToServer("[nt_ghost_spawn_bias] Moving ghost from spawn #%d to #%d", closestSpawn, nextSpawn);
+			#endif
+
+			MoveGhost(nextSpawn);
+		}
+
+		if(roundCounter % cvarBiasMoveRounds.IntValue == 0)
+		{
+			roundCounter = 0;
+			nextSpawn++;
+			if(nextSpawn > ghostSpawnPoints)
+			{
+				nextSpawn = 0;
+			}
+
+			PrintToServer("[nt_ghost_spawn_bias] Changing next spawn to %d", nextSpawn);
+		}
+	}
+ 
+    return Plugin_Continue;
 }
 
 void MoveGhost(int spawnPointId)
@@ -153,17 +234,33 @@ void UpdateGhostSpawn(int spawnPointId)
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
+	if(!cvarBiasEnabled.BoolValue)
+		return;
+
 	if(!ghostSpawnPoints)
 		return;
 
+	roundCounter++;
+
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Updating ghost data at round start");
+	PrintToServer("[nt_ghost_spawn_bias] Updating ghost data at round start Counter: %d", roundCounter);
 	#endif
 
-	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
+	if(!nextSpawnChanged && ghostSpawnPoints)
 	{
-		UpdateGhostSpawn(spawn);
+		for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
+		{
+			UpdateGhostSpawn(spawn);
+		}
+
+		nextSpawn = GetRandomInt(0, ghostSpawnPoints-1);
+
+		#if DEBUG > 0
+		PrintToServer("[nt_ghost_spawn_bias] Initial spawn %d Total points: %d", nextSpawn, ghostSpawnPoints);
+		#endif
+
+		nextSpawnChanged = true;
 	}
 
-	// TODO: Save current ghost spawn point history
+	CheckSpawnedGhost(ghost);
 }
