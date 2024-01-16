@@ -26,8 +26,6 @@ int nextSpawn;
 int roundCounter;
 bool nextSpawnChanged;
 
-
-
 int ghostSpawnPoints;
 int ghostSpawnEntity[MAXGHOSTSPAWNS+1];
 float ghostSpawnOrigin[MAXGHOSTSPAWNS+1][3];
@@ -52,6 +50,7 @@ public void OnPluginStart()
 
 	#if DEBUG > 0
 	RegConsoleCmd("nt_ghost_randomize", CommandMoveGhost);
+	RegConsoleCmd("nt_ghost_movenext", CommandMoveGhostFair);
 	#endif
 }
 
@@ -59,6 +58,14 @@ public void OnPluginStart()
 public Action CommandMoveGhost(int client, int args)
 {
 	MoveGhost(GetRandomInt(0, ghostSpawnPoints-1));
+
+	return Plugin_Handled;
+}
+
+public Action CommandMoveGhostFair(int client, int args)
+{
+	roundCounter++;
+	CheckSpawnedGhost(ghost);
 
 	return Plugin_Handled;
 }
@@ -171,7 +178,7 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 		{
 			roundCounter = 0;
 			nextSpawn++;
-			if(nextSpawn > ghostSpawnPoints)
+			if(nextSpawn >= ghostSpawnPoints)
 			{
 				nextSpawn = 0;
 			}
@@ -186,10 +193,10 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 void MoveGhost(int spawnPointId)
 {
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d Total points: %d", spawnPointId, ghostSpawnPoints);
+	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d - Location: {%.0f, %.0f, %.0f} Total points: %d", spawnPointId, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2], ghostSpawnPoints);
 	#endif
 	
-	if(!IsValidEntity(EntRefToEntIndex(ghost)))
+	if(!IsValidEntity(ghost))
 	{
 		return;
 	}
@@ -203,7 +210,7 @@ void MoveGhost(int spawnPointId)
 	// Need to pass this to avoid prop being stuck in air
 	float vecVelocity[3] = { 0.0, 0.01, 0.0 };
 
-	TeleportEntity(EntRefToEntIndex(ghost), ghostSpawnOrigin[spawnPointId], ghostSpawnRotation[spawnPointId], vecVelocity);
+	TeleportEntity(ghost, ghostSpawnOrigin[spawnPointId], ghostSpawnRotation[spawnPointId], vecVelocity);
 }
 
 void AddGhostSpawn(int entity)
@@ -229,6 +236,17 @@ void UpdateGhostSpawn(int spawnPointId)
 
 	#if DEBUG > 0
 	PrintToServer("[nt_ghost_spawn_bias] #%d - Location: {%.0f, %.0f, %.0f}", entity, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2]);
+	#endif
+
+	#if DEBUG > 1
+	float distanceFromLast = 0.0;
+	if(spawnPointId > 0)
+	{
+		distanceFromLast = GetVectorDistance(ghostSpawnOrigin[spawnPointId-1], ghostSpawnOrigin[spawnPointId]);
+
+		PrintToServer("[nt_ghost_spawn_bias] #%d - Distance from last: %.0f", entity, distanceFromLast);
+
+	}
 	#endif
 }
 
