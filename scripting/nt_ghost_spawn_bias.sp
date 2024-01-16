@@ -6,10 +6,10 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define DEBUG 0
+#define DEBUG 1
 #define MAXGHOSTSPAWNS 32
 
-#define PLUGIN_VERSION	"0.2.0"
+#define PLUGIN_VERSION	"0.2.1"
 
 public Plugin myinfo =
 {
@@ -288,7 +288,7 @@ public void GenerateValidSpawnPoints()
 	validSpawnArray = CreateArray();
 	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
 	{
-		PushArrayCell(validSpawnArray, spawn);
+		validSpawnArray.Push(spawn);
 	}
 
 	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
@@ -303,11 +303,6 @@ public void GenerateValidSpawnPoints()
 
 			if(badSpawnArray.FindValue(targetSpawn) != -1)
 				continue;
-
-			if(FindValueInArray(badSpawnArray, targetSpawn) != -1)
-			{
-				continue;
-			}
 
 			float distance = GetVectorDistance(ghostSpawnOrigin[spawn], ghostSpawnOrigin[targetSpawn]);
 			if(distance < 100)
