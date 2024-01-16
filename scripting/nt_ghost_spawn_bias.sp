@@ -9,7 +9,7 @@
 #define DEBUG 0
 #define MAXGHOSTSPAWNS 32
 
-#define PLUGIN_VERSION	"0.2.1"
+#define PLUGIN_VERSION	"0.2.2"
 
 public Plugin myinfo =
 {
@@ -31,6 +31,7 @@ float ghostSpawnOrigin[MAXGHOSTSPAWNS+1][3];
 float ghostSpawnRotation[MAXGHOSTSPAWNS+1][3];
 
 ArrayList  validSpawnArray;
+ArrayList  badSpawnArray;
 
 Handle hRestartGame;
 ConVar cvarBiasEnabled, cvarBiasMoveRounds;
@@ -53,6 +54,9 @@ public void OnPluginStart()
 	RegConsoleCmd("nt_ghost_randomize", CommandMoveGhost);
 	RegConsoleCmd("nt_ghost_movenext", CommandMoveGhostFair);
 	#endif
+
+	validSpawnArray = new ArrayList();
+	badSpawnArray = new ArrayList();
 }
 
 #if DEBUG > 0
@@ -259,7 +263,8 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 
 		GenerateValidSpawnPoints();
 
-		nextSpawn = GetURandomInt() % validSpawnArray.Length;
+		if(validSpawnArray.Length)
+			nextSpawn = GetURandomInt() % validSpawnArray.Length;
 
 		#if DEBUG > 0
 		PrintToServer("[nt_ghost_spawn_bias] Initial spawn %d Valid points: %d", nextSpawn, validSpawnArray.Length);
@@ -273,9 +278,9 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 
 public void GenerateValidSpawnPoints()
 {
-	ArrayList  badSpawnArray = CreateArray();
+	badSpawnArray.Clear();
+	validSpawnArray.Clear();
 
-	validSpawnArray = CreateArray();
 	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
 	{
 		validSpawnArray.Push(spawn);
@@ -314,6 +319,7 @@ public void GenerateValidSpawnPoints()
 			removed++;
 		}
 	}
+	badSpawnArray.Clear();
 
 	#if DEBUG > 0
 	if(removed)
