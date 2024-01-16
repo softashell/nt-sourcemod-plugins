@@ -58,7 +58,7 @@ public void OnPluginStart()
 #if DEBUG > 0
 public Action CommandMoveGhost(int client, int args)
 {
-	MoveGhost(GetRandomInt(0, ghostSpawnPoints-1));
+	MoveGhost(GetURandomInt() % ghostSpawnPoints);
 
 	return Plugin_Handled;
 }
@@ -263,7 +263,7 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 
 		GenerateValidSpawnPoints();
 
-		nextSpawn = GetRandomInt(0, validSpawnArray.Length-1);
+		nextSpawn = GetURandomInt() % validSpawnArray.Length;
 
 		#if DEBUG > 0
 		PrintToServer("[nt_ghost_spawn_bias] Initial spawn %d Valid points: %d", nextSpawn, validSpawnArray.Length);
