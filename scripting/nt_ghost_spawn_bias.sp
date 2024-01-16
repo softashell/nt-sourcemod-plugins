@@ -23,7 +23,6 @@ public Plugin myinfo =
 // Globals
 int ghost;
 int nextSpawn;
-int roundCounter;
 bool nextSpawnChanged;
 
 int ghostSpawnPoints;
@@ -66,7 +65,6 @@ public Action CommandMoveGhost(int client, int args)
 
 public Action CommandMoveGhostFair(int client, int args)
 {
-	roundCounter++;
 	CheckSpawnedGhost(ghost);
 
 	return Plugin_Handled;
@@ -96,7 +94,6 @@ public void ResetVariables()
 	#endif
 
 	nextSpawnChanged = false;
-	roundCounter = 0;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -175,9 +172,8 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 			MoveGhost(validSpawnArray.Get(nextSpawn));
 		}
 
-		if(roundCounter % cvarBiasMoveRounds.IntValue == 0)
+		if(GameRules_GetProp("m_iRoundNumber") % cvarBiasMoveRounds.IntValue == 0)
 		{
-			roundCounter = 0;
 			nextSpawn++;
 			if(nextSpawn >= validSpawnArray.Length)
 			{
@@ -254,10 +250,8 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	if(!ghostSpawnPoints)
 		return;
 
-	roundCounter++;
-
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Updating ghost data at round start Counter: %d", roundCounter);
+	PrintToServer("[nt_ghost_spawn_bias] Updating ghost data at round start");
 	#endif
 
 	if(!nextSpawnChanged && ghostSpawnPoints)
