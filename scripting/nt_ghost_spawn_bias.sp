@@ -65,6 +65,7 @@ public Action CommandMoveGhost(int client, int args)
 
 public Action CommandMoveGhostFair(int client, int args)
 {
+	GameRules_SetProp("m_iRoundNumber", GameRules_GetProp("m_iRoundNumber") + 1);
 	CheckSpawnedGhost(ghost);
 
 	return Plugin_Handled;
