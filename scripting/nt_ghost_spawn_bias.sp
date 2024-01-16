@@ -31,6 +31,8 @@ int ghostSpawnEntity[MAXGHOSTSPAWNS+1];
 float ghostSpawnOrigin[MAXGHOSTSPAWNS+1][3];
 float ghostSpawnRotation[MAXGHOSTSPAWNS+1][3];
 
+ArrayList  validSpawnArray;
+
 Handle hRestartGame;
 ConVar cvarBiasEnabled, cvarBiasMoveRounds;
 
@@ -81,6 +83,9 @@ public void OnGameRestart(Handle convar, const char[] oldValue, const char[] new
 
 public void OnMapEnd()
 {
+	ghost = -1;
+	ghostSpawnPoints = 0;
+
 	ResetVariables();
 }
 
@@ -90,8 +95,6 @@ public void ResetVariables()
 	PrintToServer("[nt_ghost_spawn_bias] Resetting everything");
 	#endif
 
-	ghost = -1;
-	ghostSpawnPoints = 0;
 	nextSpawnChanged = false;
 	roundCounter = 0;
 }
@@ -134,10 +137,8 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 	int entity = EntRefToEntIndex(ghostRef);
 
 	float entitySpawnOrigin[3];
-	float entitytSpawnRotation[3];
 
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", entitySpawnOrigin);
-	GetEntPropVector(entity, Prop_Data, "m_angRotation", entitytSpawnRotation);
 
 	#if DEBUG > 0
 	PrintToServer("[nt_ghost_spawn_bias] Ghost spawn post!! #%d - Location: {%.0f, %.0f, %.0f}", entity, entitySpawnOrigin[0], entitySpawnOrigin[1], entitySpawnOrigin[2]);
@@ -165,20 +166,20 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 		PrintToServer("[nt_ghost_spawn_bias] Found closest spawn #%d Distance: %.0f - Location: {%.0f, %.0f, %.0f}", closestSpawn, closestDistance, ghostSpawnOrigin[closestSpawn][0], ghostSpawnOrigin[closestSpawn][1], ghostSpawnOrigin[closestSpawn][2]);
 		#endif
 
-		if(closestSpawn != nextSpawn)
+		if(closestSpawn != validSpawnArray.Get(nextSpawn))
 		{
 			#if DEBUG > 0
 			PrintToServer("[nt_ghost_spawn_bias] Moving ghost from spawn #%d to #%d", closestSpawn, nextSpawn);
 			#endif
 
-			MoveGhost(nextSpawn);
+			MoveGhost(validSpawnArray.Get(nextSpawn));
 		}
 
 		if(roundCounter % cvarBiasMoveRounds.IntValue == 0)
 		{
 			roundCounter = 0;
 			nextSpawn++;
-			if(nextSpawn >= ghostSpawnPoints)
+			if(nextSpawn >= validSpawnArray.Length)
 			{
 				nextSpawn = 0;
 			}
@@ -193,7 +194,7 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 void MoveGhost(int spawnPointId)
 {
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d - Location: {%.0f, %.0f, %.0f} Total points: %d", spawnPointId, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2], ghostSpawnPoints);
+	PrintToServer("[nt_ghost_spawn_bias] Moving ghost to position %d - Location: {%.0f, %.0f, %.0f} Total points: %d Valid points: %d", spawnPointId, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2], ghostSpawnPoints, validSpawnArray.Length);
 	#endif
 	
 	if(!IsValidEntity(ghost))
@@ -218,7 +219,7 @@ void AddGhostSpawn(int entity)
 	ghostSpawnPoints++;
 
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] Upadting ghost spawn point location %d Total points: %d", entity, ghostSpawnPoints);
+	PrintToServer("[nt_ghost_spawn_bias] Updating ghost spawn point location %d Total points: %d", entity, ghostSpawnPoints);
 	#endif
 
 	int spawn = ghostSpawnPoints-1;
@@ -235,18 +236,13 @@ void UpdateGhostSpawn(int spawnPointId)
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", ghostSpawnRotation[spawnPointId]);
 
 	#if DEBUG > 0
-	PrintToServer("[nt_ghost_spawn_bias] #%d - Location: {%.0f, %.0f, %.0f}", entity, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2]);
-	#endif
-
-	#if DEBUG > 1
 	float distanceFromLast = 0.0;
 	if(spawnPointId > 0)
 	{
 		distanceFromLast = GetVectorDistance(ghostSpawnOrigin[spawnPointId-1], ghostSpawnOrigin[spawnPointId]);
-
-		PrintToServer("[nt_ghost_spawn_bias] #%d - Distance from last: %.0f", entity, distanceFromLast);
-
 	}
+
+	PrintToServer("[nt_ghost_spawn_bias] #%d - Location: {%.0f, %.0f, %.0f} - Distance from last: %.0f", entity, ghostSpawnOrigin[spawnPointId][0], ghostSpawnOrigin[spawnPointId][1], ghostSpawnOrigin[spawnPointId][2], distanceFromLast);
 	#endif
 }
 
@@ -271,14 +267,75 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 			UpdateGhostSpawn(spawn);
 		}
 
-		nextSpawn = GetRandomInt(0, ghostSpawnPoints-1);
+		GenerateValidSpawnPoints();
+
+		nextSpawn = GetRandomInt(0, validSpawnArray.Length-1);
 
 		#if DEBUG > 0
-		PrintToServer("[nt_ghost_spawn_bias] Initial spawn %d Total points: %d", nextSpawn, ghostSpawnPoints);
+		PrintToServer("[nt_ghost_spawn_bias] Initial spawn %d Valid points: %d", nextSpawn, validSpawnArray.Length);
 		#endif
 
 		nextSpawnChanged = true;
 	}
 
 	CheckSpawnedGhost(ghost);
+}
+
+public void GenerateValidSpawnPoints()
+{
+	ArrayList  badSpawnArray = CreateArray();
+
+	validSpawnArray = CreateArray();
+	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
+	{
+		PushArrayCell(validSpawnArray, spawn);
+	}
+
+	for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
+	{
+		if(badSpawnArray.FindValue(spawn) != -1)
+			continue;
+
+		for(int targetSpawn = 0; targetSpawn < ghostSpawnPoints; targetSpawn++)
+		{
+			if(targetSpawn == spawn)
+				continue;
+
+			if(badSpawnArray.FindValue(targetSpawn) != -1)
+				continue;
+
+			if(FindValueInArray(badSpawnArray, targetSpawn) != -1)
+			{
+				continue;
+			}
+
+			float distance = GetVectorDistance(ghostSpawnOrigin[spawn], ghostSpawnOrigin[targetSpawn]);
+			if(distance < 100)
+			{
+				badSpawnArray.Push(targetSpawn);
+			}
+		}
+	}
+
+	int size = badSpawnArray.Length;
+	int removed;
+	for (int i = 0; i < size; i++)
+	{
+		int value = badSpawnArray.Get(i);
+		int spawnIndex = validSpawnArray.FindValue(value);
+		if(spawnIndex != -1)
+		{
+			validSpawnArray.Erase(spawnIndex);
+			removed++;
+		}
+	}
+
+	#if DEBUG > 0
+	if(removed)
+	{
+		PrintToServer("[nt_ghost_spawn_bias] Removed %d bad spawn points, Valid spawns: %d", removed, validSpawnArray.Length);
+	}
+	#endif
+
+	validSpawnArray.Sort(Sort_Random, Sort_Integer);
 }
