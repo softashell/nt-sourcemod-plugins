@@ -126,11 +126,6 @@ void CheckSpawnedGhost(int ghostRef)
 		return;
 	}
 
-	CreateTimer(0.5, CheckSpawnedGhost_Post, ghostRef);
-}
-
-public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
-{
 	int entity = EntRefToEntIndex(ghostRef);
 
 	float entitySpawnOrigin[3];
@@ -183,8 +178,6 @@ public Action CheckSpawnedGhost_Post(Handle timer, int ghostRef)
 			PrintToServer("[nt_ghost_spawn_bias] Changing next spawn to %d", nextSpawn);
 		}
 	}
- 
-    return Plugin_Continue;
 }
 
 void MoveGhost(int spawnPointId)
