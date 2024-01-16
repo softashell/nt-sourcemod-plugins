@@ -175,7 +175,9 @@ void CheckSpawnedGhost(int ghostRef)
 				nextSpawn = 0;
 			}
 
+			#if DEBUG > 0
 			PrintToServer("[nt_ghost_spawn_bias] Changing next spawn to %d", nextSpawn);
+			#endif
 		}
 	}
 }
