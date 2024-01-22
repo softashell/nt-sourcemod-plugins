@@ -9,7 +9,7 @@
 #define DEBUG 0
 #define MAXGHOSTSPAWNS 32
 
-#define PLUGIN_VERSION	"0.2.2"
+#define PLUGIN_VERSION	"0.2.3"
 
 public Plugin myinfo =
 {
@@ -23,6 +23,7 @@ public Plugin myinfo =
 // Globals
 int ghost;
 int nextSpawn;
+int startRound;
 bool nextSpawnChanged;
 
 int ghostSpawnPoints;
@@ -172,7 +173,7 @@ void CheckSpawnedGhost(int ghostRef)
 			MoveGhost(validSpawnArray.Get(nextSpawn));
 		}
 
-		if(GameRules_GetProp("m_iRoundNumber") % cvarBiasMoveRounds.IntValue == 0)
+		if((GameRules_GetProp("m_iRoundNumber") + 1 - startRound) % cvarBiasMoveRounds.IntValue == 0)
 		{
 			nextSpawn++;
 			if(nextSpawn >= validSpawnArray.Length)
@@ -181,7 +182,7 @@ void CheckSpawnedGhost(int ghostRef)
 			}
 
 			#if DEBUG > 0
-			PrintToServer("[nt_ghost_spawn_bias] Changing next spawn to %d", nextSpawn);
+			PrintToServer("[nt_ghost_spawn_bias] Changing next spawn to %d Round: %d", nextSpawn, GameRules_GetProp("m_iRoundNumber") + 1 - startRound);
 			#endif
 		}
 	}
@@ -256,6 +257,8 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 
 	if(!nextSpawnChanged && ghostSpawnPoints)
 	{
+		startRound = GameRules_GetProp("m_iRoundNumber");
+
 		for(int spawn = 0; spawn < ghostSpawnPoints; spawn++)
 		{
 			UpdateGhostSpawn(spawn);
