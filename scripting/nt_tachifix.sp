@@ -8,11 +8,11 @@
 
 public Plugin myinfo =
 {
-	name		= "NEOTOKYO° Tachi fix",
-	author		= "soft as HELL",
+	name = "NEOTOKYO° Tachi fix",
+	author = "soft as HELL",
 	description = "Make Tachi great again",
-	version		= PLUGIN_VERSION,
-	url			= ""
+	version	= PLUGIN_VERSION,
+	url	= "https://github.com/softashell/nt-sourcemod-plugins"
 
 }
 
@@ -39,7 +39,7 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 
 		g_bAttack2Held[client] = true;
 
-		int activeweapon	   = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+		int activeweapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 		if (!activeweapon)
 		{
 			return Plugin_Continue;
