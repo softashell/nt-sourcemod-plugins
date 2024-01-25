@@ -62,4 +62,4 @@ jobs:
         with:
           tag_name: release
           files: |
-            ./release/*.zip
+            ./release/*.smx
