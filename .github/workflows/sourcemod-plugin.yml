@@ -54,9 +54,12 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: compiled-plugins
+          path: release
+      - name: Display structure of downloaded files
+        run: ls -R
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: release
           files: |
-            compiled-plugins.zip
+            ./release/*.zip
