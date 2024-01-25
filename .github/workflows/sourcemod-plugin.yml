@@ -55,11 +55,14 @@ jobs:
         with:
           name: compiled-plugins
           path: release
-      - name: Display structure of downloaded files
-        run: ls -R
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Update latest release
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: release
+          tag_name: latest
+          name: 'Latest release'
+          prerelease: false
+          body: 'Compiled NT plugins'
           files: |
             ./release/*.smx
