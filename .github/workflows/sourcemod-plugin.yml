@@ -46,6 +46,7 @@ jobs:
           path: |
             *.smx
   release:
+    if: github.ref_name == 'master'
     needs: build
     runs-on: ubuntu-latest
     strategy:
