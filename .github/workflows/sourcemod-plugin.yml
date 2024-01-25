@@ -22,7 +22,7 @@ jobs:
         uses: rumblefrog/setup-sp@master
         with:
           version: '1.11.x'
-          
+
       - name: Checkout neotokyo include repo
         uses: actions/checkout@v4
         with:
@@ -37,8 +37,7 @@ jobs:
             spcomp -E -w234 -O2 -v2 -i ./scripting/include -i ./sourcemod-nt-include/scripting/include $file
           done
           echo "===OUT FILES==="
-          ls
-          echo version = ${{ steps.setup_sp.outputs.plugin-version }}
+          ls *.smx
         working-directory: ${{ env.SCRIPTS_PATH }}
       - name: Upload compiled plugins
         uses: actions/upload-artifact@v4
@@ -46,3 +45,8 @@ jobs:
           name: compiled-plugins
           path: |
             *.smx
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            compiled-plugins.zip
