@@ -6,7 +6,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.0"
+#define PLUGIN_VERSION "0.2.1"
 #define FIREMODE_DELAY 0.5
 #define DEBUG 0
 
@@ -36,7 +36,9 @@ public void OnPlayerSpawn(Handle event, const char[] name, bool dontBroadcast)
 	PrintToServer("[nt_tachifix] OnPlayerSpawn %d", GetGameTime() - FIREMODE_DELAY);
 	#endif
 
-	g_fLastFireModeChange[GetEventInt(event, "userid")] = GetGameTime() - FIREMODE_DELAY;
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+
+	g_fLastFireModeChange[client] = GetGameTime() - FIREMODE_DELAY;
 }
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
