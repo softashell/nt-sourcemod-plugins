@@ -12,7 +12,7 @@ public Plugin myinfo =
     name = "NEOTOKYO° Damage counter",
     author = "soft as HELL",
     description = "Shows detailed damage list on death/round end",
-    version = "0.7.5",
+    version = "0.7.6",
     url = ""
 };
 
@@ -50,13 +50,6 @@ public void OnPluginStart()
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
 }
 
-public void OnClientPutInServer(int client)
-{
-	g_SeenReport[client] = false;
-	g_PlayerAssist[client] = 0;
-	g_PlayerClass[client] = CLASS_NONE;
-}
-
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	int client, victim;
@@ -69,7 +62,10 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 			if(!g_SeenReport[client])
 				DamageReport(client);
 		}
+	}
 
+	for(client = 1; client <= MaxClients; client++)
+	{
 		// Resets everything
 		g_SeenReport[client] = false;
 		g_PlayerHealth[client] = 100;
