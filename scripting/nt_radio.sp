@@ -1,31 +1,33 @@
 #pragma semicolon 1
+#pragma newdecls required
 
 #include <sourcemod>
 #include <sdktools>
+#include <neotokyo>
 
-#define PLUGIN_VERSION	"1.0.5"
+#define PLUGIN_VERSION	"1.1.0"
 
-new String:Playlist[][] = {
-	"../soundtrack/101 - annul.mp3",
-	"../soundtrack/102 - tinsoldiers.mp3",
-	"../soundtrack/103 - beacon.mp3",
-	"../soundtrack/104 - imbrium.mp3",
-	"../soundtrack/105 - automata.mp3",
-	"../soundtrack/106 - hiroden 651.mp3",
-	"../soundtrack/109 - mechanism.mp3",
-	"../soundtrack/110 - paperhouse.mp3",
-	"../soundtrack/111 - footprint.mp3",
-	"../soundtrack/112 - out.mp3",
-	"../soundtrack/202 - scrap.mp3",
-	"../soundtrack/207 - carapace.mp3",
-	"../soundtrack/208 - stopgap.mp3",
-	"../soundtrack/209 - radius.mp3",
-	"../soundtrack/210 - rebuild.mp3"
+char Playlist[][] = {
+	"#../soundtrack/101 - annul.mp3",
+	"#../soundtrack/102 - tinsoldiers.mp3",
+	"#../soundtrack/103 - beacon.mp3",
+	"#../soundtrack/104 - imbrium.mp3",
+	"#../soundtrack/105 - automata.mp3",
+	"#../soundtrack/106 - hiroden 651.mp3",
+	"#../soundtrack/109 - mechanism.mp3",
+	"#../soundtrack/110 - paperhouse.mp3",
+	"#../soundtrack/111 - footprint.mp3",
+	"#../soundtrack/112 - out.mp3",
+	"#../soundtrack/202 - scrap.mp3",
+	"#../soundtrack/207 - carapace.mp3",
+	"#../soundtrack/208 - stopgap.mp3",
+	"#../soundtrack/209 - radius.mp3",
+	"#../soundtrack/210 - rebuild.mp3"
 };
 
-new bool:RadioEnabled[MAXPLAYERS+1];
+bool RadioEnabled[NEO_MAXPLAYERS+1];
 
-public Plugin:myinfo =
+public Plugin myinfo = 
 {
     name = "NEOTOKYO° Radio",
     author = "Soft as HELL",
@@ -34,7 +36,7 @@ public Plugin:myinfo =
     url = ""
 };
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	CreateConVar("sm_ntradio_version", PLUGIN_VERSION, "NEOTOKYO° Radio Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 
@@ -44,26 +46,26 @@ public OnPluginStart()
 	RegConsoleCmd("sm_radiooff", Cmd_Radio);
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	RadioEnabled[client] = false;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	RadioEnabled[client] = false;
 }
 
-public Play(client) {
+void Play(int client) {
 	if(!IsValidClient(client))
 		return;
 
-	new Song = GetRandomInt(0, sizeof(Playlist)-1);
+	int Song = GetRandomInt(0, sizeof(Playlist)-1);
 
-	ClientCommand(client, "play \"%s\"", String:Playlist[Song][0]);
+	ClientCommand(client, "play \"%s\"", Playlist[Song][0]);
 }
 
-public Action:Cmd_Radio(client, args)
+public Action Cmd_Radio(int client, int args)
 {
 	RadioEnabled[client] = !RadioEnabled[client];
 
@@ -79,27 +81,10 @@ public Action:Cmd_Radio(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast){
-	for(new i = 1; i <= MaxClients; i++)
+public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast){
+	for(int i = 1; i <= MaxClients; i++)
 		if(IsValidClient(i) && RadioEnabled[i])
 			Play(i);
 
 	return Plugin_Continue;
-}
-
-bool:IsValidClient(client){
-
-	if (client == 0)
-		return false;
-
-	if (!IsClientConnected(client))
-		return false;
-
-	if (IsFakeClient(client))
-		return false;
-
-	if (!IsClientInGame(client))
-		return false;
-
-	return true;
 }
